@@ -2,25 +2,35 @@ package com.petcare.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RegisterRequest {
-    @Email(message = "Email không đúng định dạng")
-    @NotBlank(message = "Email không được để trống")
+    @NotBlank(message = "Email khong duoc de trong")
+    @Email(message = "Email khong dung dinh dang")
     private String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
+    @NotBlank(message = "Mat khau khong duoc de trong")
+    @Size(min = 8, max = 32, message = "Mat khau phai tu 8 den 32 ky tu")
     private String password;
 
-    @NotBlank(message = "Họ tên không được để trống")
-    @Size(max = 255, message = "Họ tên không được vượt quá 255 ký tự")
+    @NotBlank(message = "Ho ten khong duoc de trong")
+    @Size(max = 100, message = "Ho ten khong duoc vuot qua 100 ky tu")
     private String fullName;
 
-    @Size(max = 20, message = "Số điện thoại không được vượt quá 20 ký tự")
+    @Pattern(regexp = "^$|\\d{10}", message = "So dien thoai phai gom 10 chu so")
     private String phoneNumber;
+
+    private String deviceToken;
+
+    @Pattern(regexp = "^$|ios|android|web", message = "Device type phai la ios, android hoac web")
+    private String deviceType;
 }

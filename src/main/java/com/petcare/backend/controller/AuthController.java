@@ -3,6 +3,7 @@ package com.petcare.backend.controller;
 import com.petcare.backend.dto.ApiResponse;
 import com.petcare.backend.dto.AuthResponse;
 import com.petcare.backend.dto.LoginRequest;
+import com.petcare.backend.dto.RefreshTokenRequest;
 import com.petcare.backend.dto.RegisterRequest;
 import com.petcare.backend.dto.RegisterResponse;
 import com.petcare.backend.dto.ResendVerificationRequest;
@@ -45,5 +46,10 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Dang nhap thanh cong", authService.login(request)));
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Lam moi token thanh cong", authService.refreshToken(request)));
     }
 }

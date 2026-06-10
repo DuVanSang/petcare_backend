@@ -17,8 +17,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "email_verification_tokens")
-public class EmailVerificationToken {
+@Table(name = "refresh_tokens")
+public class RefreshToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(columnDefinition = "BIGINT UNSIGNED")
@@ -28,14 +28,14 @@ public class EmailVerificationToken {
     @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
     private User user;
 
-    @Column(name = "otp_code", nullable = false, length = 10)
-    private String otpCode;
+    @Column(nullable = false, unique = true, length = 128)
+    private String token;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(name = "used_at")
-    private LocalDateTime usedAt;
+    @Column(name = "revoked_at")
+    private LocalDateTime revokedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

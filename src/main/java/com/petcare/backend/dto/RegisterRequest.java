@@ -14,23 +14,23 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RegisterRequest {
-    @NotBlank(message = "Email khong duoc de trong")
-    @Email(message = "Email khong dung dinh dang")
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không đúng định dạng")
     private String email;
 
-    @NotBlank(message = "Mat khau khong duoc de trong")
-    @Size(min = 8, max = 32, message = "Mat khau phai tu 8 den 32 ky tu")
+    @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = 8, max = 32, message = "Mật khẩu phải từ 8 đến 32 ký tự")
     private String password;
 
-    @NotBlank(message = "Ho ten khong duoc de trong")
-    @Size(max = 100, message = "Ho ten khong duoc vuot qua 100 ky tu")
+    @NotBlank(message = "Họ tên không được để trống")
+    @Size(max = 100, message = "Họ tên không được vượt quá 100 ký tự")
     private String fullName;
 
-    @Pattern(regexp = "^$|\\d{10}", message = "So dien thoai phai gom 10 chu so")
+    @Pattern(regexp = "^$|\\d{10}", message = "Số điện thoại phải gồm 10 chữ số")
     private String phoneNumber;
 
     private String deviceToken;
 
-    @Pattern(regexp = "^$|ios|android|web", message = "Device type phai la ios, android hoac web")
+    @Pattern(regexp = "^$|ios|android|web", message = "Loại thiết bị phải là ios, android hoặc web")
     private String deviceType;
 }

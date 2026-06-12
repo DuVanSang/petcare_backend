@@ -1,4 +1,4 @@
-package com.petcare.backend.dto;
+    package com.petcare.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -7,8 +7,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ResendVerificationRequest {
-    @Email(message = "Email không đúng định dạng")
+public class ForgotPasswordRequest {
     @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không đúng định dạng")
     private String email;
 }

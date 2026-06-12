@@ -19,7 +19,9 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> me(@AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin người dùng thành công",
-                userService.getCurrentUser(principal)));
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy thông tin người dùng thành công",
+                userService.getCurrentUser(principal)
+        ));
     }
 }

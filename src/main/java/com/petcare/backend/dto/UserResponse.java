@@ -13,6 +13,9 @@ public class UserResponse {
     private String fullName;
     private String phoneNumber;
     private String avatarUrl;
+    private String languageCode;
+    private String timezone;
+    private Boolean pushNotificationEnabled;
     private String role;
     private String status;
     private Boolean emailVerified;
@@ -27,6 +30,9 @@ public class UserResponse {
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .avatarUrl(user.getAvatarUrl())
+                .languageCode(user.getLanguageCode())
+                .timezone(user.getTimezone())
+                .pushNotificationEnabled(user.getPushNotificationEnabled())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .emailVerified(user.getEmailVerified())

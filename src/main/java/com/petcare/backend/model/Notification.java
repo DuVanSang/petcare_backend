@@ -18,8 +18,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "user_devices")
-public class UserDevice {
+@Table(name = "notifications")
+public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(columnDefinition = "BIGINT UNSIGNED")
@@ -29,29 +29,29 @@ public class UserDevice {
     @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
     private User user;
 
-    @Column(name = "device_id", nullable = false, unique = true, length = 100)
-    private String deviceId;
+    @Column(nullable = false)
+    private String title;
 
-    @Column(name = "device_name")
-    private String deviceName;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String body;
 
-    @Column(name = "device_type", nullable = false)
-    private String deviceType;
+    @Column(nullable = false)
+    private String type = "system";
 
-    @Column(name = "device_token", unique = true, length = 512)
-    private String deviceToken;
+    @Column(columnDefinition = "JSON")
+    private String data;
 
-    @Column(name = "notification_enabled", nullable = false)
-    private Boolean notificationEnabled = false;
+    @Column(nullable = false)
+    private String status = "pending";
 
-    @Column(name = "app_version", length = 50)
-    private String appVersion;
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
 
-    @Column(name = "os_version", length = 100)
-    private String osVersion;
+    @Column(name = "sent_at")
+    private LocalDateTime sentAt;
 
-    @Column(name = "last_active_at")
-    private LocalDateTime lastActiveAt;
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

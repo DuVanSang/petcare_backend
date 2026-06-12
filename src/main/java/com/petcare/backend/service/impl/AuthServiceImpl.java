@@ -75,7 +75,16 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(request.getPhoneNumber());
 
         User savedUser = userRepository.save(user);
-        saveUserDeviceIfPresent(request, savedUser);
+        saveUserDeviceIfPresent(
+                savedUser,
+                request.getDeviceId(),
+                request.getDeviceName(),
+                request.getDeviceType(),
+                request.getDeviceToken(),
+                request.getNotificationEnabled(),
+                request.getAppVersion(),
+                request.getOsVersion()
+        );
         emailVerificationService.createAndSendOtp(savedUser);
 
         return new RegisterResponse(savedUser.getId(), savedUser.getEmail(), savedUser.getEmailVerified());
@@ -112,6 +121,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -127,6 +137,17 @@ public class AuthServiceImpl implements AuthService {
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
+
+        saveUserDeviceIfPresent(
+                user,
+                request.getDeviceId(),
+                request.getDeviceName(),
+                request.getDeviceType(),
+                request.getDeviceToken(),
+                request.getNotificationEnabled(),
+                request.getAppVersion(),
+                request.getOsVersion()
+        );
 
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
@@ -248,23 +269,42 @@ public class AuthServiceImpl implements AuthService {
         });
     }
 
-    private void saveUserDeviceIfPresent(RegisterRequest request, User user) {
-        if (!StringUtils.hasText(request.getDeviceToken())) {
+    private void saveUserDeviceIfPresent(
+            User user,
+            String deviceId,
+            String deviceName,
+            String deviceType,
+            String deviceToken,
+            Boolean notificationEnabled,
+            String appVersion,
+            String osVersion) {
+        if (!StringUtils.hasText(deviceId)) {
             return;
         }
 
-        if (!StringUtils.hasText(request.getDeviceType())) {
-            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi device token");
+        if (!StringUtils.hasText(deviceType)) {
+            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
 
-        String deviceType = request.getDeviceType().trim().toLowerCase();
-
-        UserDevice userDevice = userDeviceRepository.findByDeviceToken(request.getDeviceToken().trim())
+        UserDevice userDevice = userDeviceRepository.findByDeviceId(deviceId.trim())
                 .orElseGet(UserDevice::new);
         userDevice.setUser(user);
-        userDevice.setDeviceToken(request.getDeviceToken().trim());
-        userDevice.setDeviceType(deviceType);
+        userDevice.setDeviceId(deviceId.trim());
+        userDevice.setDeviceName(trimToNull(deviceName));
+        userDevice.setDeviceType(deviceType.trim().toLowerCase());
+        userDevice.setDeviceToken(trimToNull(deviceToken));
+        userDevice.setNotificationEnabled(Boolean.TRUE.equals(notificationEnabled));
+        userDevice.setAppVersion(trimToNull(appVersion));
+        userDevice.setOsVersion(trimToNull(osVersion));
+        userDevice.setLastActiveAt(LocalDateTime.now());
         userDeviceRepository.save(userDevice);
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     private String normalizeEmail(String email) {

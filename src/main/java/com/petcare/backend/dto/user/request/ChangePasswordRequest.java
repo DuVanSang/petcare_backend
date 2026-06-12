@@ -1,4 +1,4 @@
-package com.petcare.backend.dto;
+package com.petcare.backend.dto.user.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

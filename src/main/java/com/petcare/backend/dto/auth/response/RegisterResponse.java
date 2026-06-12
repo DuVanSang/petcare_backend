@@ -1,4 +1,4 @@
-package com.petcare.backend.dto;
+package com.petcare.backend.dto.auth.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

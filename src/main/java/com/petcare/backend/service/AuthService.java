@@ -1,15 +1,15 @@
 package com.petcare.backend.service;
 
-import com.petcare.backend.dto.AuthResponse;
-import com.petcare.backend.dto.ForgotPasswordRequest;
-import com.petcare.backend.dto.LoginRequest;
-import com.petcare.backend.dto.LogoutRequest;
-import com.petcare.backend.dto.RefreshTokenRequest;
-import com.petcare.backend.dto.RegisterRequest;
-import com.petcare.backend.dto.RegisterResponse;
-import com.petcare.backend.dto.ResendVerificationRequest;
-import com.petcare.backend.dto.ResetPasswordRequest;
-import com.petcare.backend.dto.VerifyEmailRequest;
+import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
+import com.petcare.backend.dto.auth.request.LoginRequest;
+import com.petcare.backend.dto.auth.request.LogoutRequest;
+import com.petcare.backend.dto.auth.request.RefreshTokenRequest;
+import com.petcare.backend.dto.auth.request.RegisterRequest;
+import com.petcare.backend.dto.auth.response.RegisterResponse;
+import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
+import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
+import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
 
 public interface AuthService {
     RegisterResponse register(RegisterRequest request);

@@ -1,4 +1,4 @@
-package com.petcare.backend.dto;
+package com.petcare.backend.dto.user.response;
 
 import com.petcare.backend.model.UserDevice;
 import java.time.LocalDateTime;

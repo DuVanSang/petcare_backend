@@ -1,6 +1,6 @@
 package com.petcare.backend.exception;
 
-import com.petcare.backend.dto.ApiResponse;
+import com.petcare.backend.dto.common.ApiResponse;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;

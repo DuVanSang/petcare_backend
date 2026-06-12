@@ -1,10 +1,10 @@
 package com.petcare.backend.service.impl;
 
-import com.petcare.backend.dto.ChangePasswordRequest;
-import com.petcare.backend.dto.UpdateProfileRequest;
-import com.petcare.backend.dto.UpdateUserPreferencesRequest;
-import com.petcare.backend.dto.UserDeviceResponse;
-import com.petcare.backend.dto.UserResponse;
+import com.petcare.backend.dto.user.request.ChangePasswordRequest;
+import com.petcare.backend.dto.user.request.UpdateProfileRequest;
+import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
+import com.petcare.backend.dto.user.response.UserDeviceResponse;
+import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.User;

@@ -1,16 +1,17 @@
 package com.petcare.backend.service.impl;
 
-import com.petcare.backend.dto.AuthResponse;
-import com.petcare.backend.dto.ForgotPasswordRequest;
-import com.petcare.backend.dto.LoginRequest;
-import com.petcare.backend.dto.LogoutRequest;
-import com.petcare.backend.dto.RefreshTokenRequest;
-import com.petcare.backend.dto.RegisterRequest;
-import com.petcare.backend.dto.RegisterResponse;
-import com.petcare.backend.dto.ResendVerificationRequest;
-import com.petcare.backend.dto.ResetPasswordRequest;
-import com.petcare.backend.dto.UserResponse;
-import com.petcare.backend.dto.VerifyEmailRequest;
+import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
+import com.petcare.backend.dto.auth.request.LoginRequest;
+import com.petcare.backend.dto.auth.request.LogoutRequest;
+import com.petcare.backend.dto.auth.request.RefreshTokenRequest;
+import com.petcare.backend.dto.auth.request.RegisterRequest;
+import com.petcare.backend.dto.auth.response.RegisterResponse;
+import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
+import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
+import com.petcare.backend.dto.user.response.UserResponse;
+import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
@@ -75,16 +76,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(request.getPhoneNumber());
 
         User savedUser = userRepository.save(user);
-        saveUserDeviceIfPresent(
-                savedUser,
-                request.getDeviceId(),
-                request.getDeviceName(),
-                request.getDeviceType(),
-                request.getDeviceToken(),
-                request.getNotificationEnabled(),
-                request.getAppVersion(),
-                request.getOsVersion()
-        );
+        saveUserDeviceIfPresent(savedUser, request.getDevice());
         emailVerificationService.createAndSendOtp(savedUser);
 
         return new RegisterResponse(savedUser.getId(), savedUser.getEmail(), savedUser.getEmailVerified());
@@ -138,16 +130,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        saveUserDeviceIfPresent(
-                user,
-                request.getDeviceId(),
-                request.getDeviceName(),
-                request.getDeviceType(),
-                request.getDeviceToken(),
-                request.getNotificationEnabled(),
-                request.getAppVersion(),
-                request.getOsVersion()
-        );
+        saveUserDeviceIfPresent(user, request.getDevice());
 
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
@@ -269,19 +252,17 @@ public class AuthServiceImpl implements AuthService {
         });
     }
 
-    private void saveUserDeviceIfPresent(
-            User user,
-            String deviceId,
-            String deviceName,
-            String deviceType,
-            String deviceToken,
-            Boolean notificationEnabled,
-            String appVersion,
-            String osVersion) {
+    private void saveUserDeviceIfPresent(User user, DeviceInfoRequest device) {
+        if (device == null) {
+            return;
+        }
+
+        String deviceId = device.getDeviceId();
         if (!StringUtils.hasText(deviceId)) {
             return;
         }
 
+        String deviceType = device.getDeviceType();
         if (!StringUtils.hasText(deviceType)) {
             throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
@@ -290,12 +271,12 @@ public class AuthServiceImpl implements AuthService {
                 .orElseGet(UserDevice::new);
         userDevice.setUser(user);
         userDevice.setDeviceId(deviceId.trim());
-        userDevice.setDeviceName(trimToNull(deviceName));
+        userDevice.setDeviceName(trimToNull(device.getDeviceName()));
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(trimToNull(deviceToken));
-        userDevice.setNotificationEnabled(Boolean.TRUE.equals(notificationEnabled));
-        userDevice.setAppVersion(trimToNull(appVersion));
-        userDevice.setOsVersion(trimToNull(osVersion));
+        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
+        userDevice.setNotificationEnabled(Boolean.TRUE.equals(device.getNotificationEnabled()));
+        userDevice.setAppVersion(trimToNull(device.getAppVersion()));
+        userDevice.setOsVersion(trimToNull(device.getOsVersion()));
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDeviceRepository.save(userDevice);
     }

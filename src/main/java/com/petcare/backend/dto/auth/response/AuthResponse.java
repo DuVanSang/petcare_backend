@@ -1,4 +1,6 @@
-package com.petcare.backend.dto;
+package com.petcare.backend.dto.auth.response;
+
+import com.petcare.backend.dto.user.response.UserResponse;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

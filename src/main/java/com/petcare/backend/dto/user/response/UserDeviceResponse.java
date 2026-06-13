@@ -1,6 +1,6 @@
 package com.petcare.backend.dto.user.response;
 
-import com.petcare.backend.model.UserDevice;
+import com.petcare.backend.model.RefreshToken;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,19 +20,19 @@ public class UserDeviceResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static UserDeviceResponse from(UserDevice userDevice) {
+    public static UserDeviceResponse from(RefreshToken session) {
         return UserDeviceResponse.builder()
-                .id(userDevice.getId())
-                .deviceId(userDevice.getDeviceId())
-                .deviceName(userDevice.getDeviceName())
-                .deviceType(userDevice.getDeviceType())
-                .deviceToken(userDevice.getDeviceToken())
-                .notificationEnabled(userDevice.getNotificationEnabled())
-                .appVersion(userDevice.getAppVersion())
-                .osVersion(userDevice.getOsVersion())
-                .lastActiveAt(userDevice.getLastActiveAt())
-                .createdAt(userDevice.getCreatedAt())
-                .updatedAt(userDevice.getUpdatedAt())
+                .id(session.getId())
+                .deviceId(session.getIpAddress() != null ? session.getIpAddress() : "Session-" + session.getId())
+                .deviceName(session.getUserAgent() != null ? session.getUserAgent() : "Thiết bị di động")
+                .deviceType(session.getDeviceType())
+                .deviceToken(session.getDeviceToken())
+                .notificationEnabled(session.getDeviceToken() != null)
+                .appVersion("1.0.0")
+                .osVersion(session.getUserAgent() != null ? session.getUserAgent() : "Unknown OS")
+                .lastActiveAt(session.getUpdatedAt())
+                .createdAt(session.getCreatedAt())
+                .updatedAt(session.getUpdatedAt())
                 .build();
     }
 }

@@ -8,10 +8,11 @@ import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.User;
-import com.petcare.backend.repository.UserDeviceRepository;
+import com.petcare.backend.repository.RefreshTokenRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.UserService;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,7 +24,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
-    private final UserDeviceRepository userDeviceRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -90,17 +91,23 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserDeviceResponse> getMyDevices(UserPrincipal principal) {
-        return userDeviceRepository.findByUserIdOrderByUpdatedAtDesc(principal.getId())
-                .stream()
-                .map(UserDeviceResponse::from)
-                .toList();
+        return refreshTokenRepository.findByUserIdAndIsRevokedFalseAndExpiresAtAfter(
+                principal.getId(), 
+                LocalDateTime.now()
+        )
+        .stream()
+        .map(UserDeviceResponse::from)
+        .toList();
     }
 
     @Override
     @Transactional
     public void deleteMyDevice(UserPrincipal principal, Long deviceId) {
-        userDeviceRepository.findByIdAndUserId(deviceId, principal.getId())
-                .ifPresent(userDeviceRepository::delete);
+        refreshTokenRepository.findByIdAndUserId(deviceId, principal.getId())
+                .ifPresent(token -> {
+                    token.setIsRevoked(true);
+                    refreshTokenRepository.save(token);
+                });
     }
 
     private User getUserOrThrow(Long userId) {

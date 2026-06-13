@@ -1,0 +1,124 @@
+package com.petcare.backend.controller;
+
+import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.pet.request.AcceptInvitationRequest;
+import com.petcare.backend.dto.pet.request.CreatePetRequest;
+import com.petcare.backend.dto.pet.request.InviteCoParentRequest;
+import com.petcare.backend.dto.pet.request.UpdatePetRequest;
+import com.petcare.backend.dto.pet.response.CoParentResponse;
+import com.petcare.backend.dto.pet.response.PetResponse;
+import com.petcare.backend.dto.pet.response.PetSummaryResponse;
+import com.petcare.backend.security.UserPrincipal;
+import com.petcare.backend.service.PetService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/pets")
+@RequiredArgsConstructor
+@Tag(name = "Pets", description = "Quản lý thú cưng")
+@SecurityRequirement(name = "bearerAuth")
+public class PetController {
+
+    private final PetService petService;
+
+    @PostMapping
+    @Operation(summary = "Tạo thú cưng mới")
+    public ResponseEntity<ApiResponse<PetResponse>> createPet(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CreatePetRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo thú cưng thành công", petService.createPet(principal, request)));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Lấy danh sách thú cưng của tôi (owner + co-parent)")
+    public ResponseEntity<ApiResponse<List<PetSummaryResponse>>> getMyPets(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách thú cưng thành công",
+                petService.getMyPets(principal)
+        ));
+    }
+
+    @GetMapping("/{petId}")
+    @Operation(summary = "Xem chi tiết thú cưng")
+    public ResponseEntity<ApiResponse<PetResponse>> getPet(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy thông tin thú cưng thành công",
+                petService.getPetById(principal, petId)
+        ));
+    }
+
+    @PatchMapping("/{petId}")
+    @Operation(summary = "Cập nhật thông tin thú cưng")
+    public ResponseEntity<ApiResponse<PetResponse>> updatePet(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @Valid @RequestBody UpdatePetRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật thú cưng thành công",
+                petService.updatePet(principal, petId, request)
+        ));
+    }
+
+    @DeleteMapping("/{petId}")
+    @Operation(summary = "Xóa thú cưng (chỉ owner)")
+    public ResponseEntity<ApiResponse<Void>> deletePet(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        petService.deletePet(principal, petId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa thú cưng thành công", null));
+    }
+
+    // ========== Co-Parent ==========
+
+    @GetMapping("/{petId}/co-parents")
+    @Operation(summary = "Lấy danh sách đồng nuôi")
+    public ResponseEntity<ApiResponse<List<CoParentResponse>>> getCoParents(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách đồng nuôi thành công",
+                petService.getCoParents(principal, petId)
+        ));
+    }
+
+    @PostMapping("/{petId}/co-parents/invite")
+    @Operation(summary = "Mời đồng nuôi (chỉ owner)")
+    public ResponseEntity<ApiResponse<Void>> inviteCoParent(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @Valid @RequestBody InviteCoParentRequest request) {
+        petService.inviteCoParent(principal, petId, request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đã gửi lời mời đồng nuôi. Mã mời được in ra console log (dev mode)", null));
+    }
+
+    @PostMapping("/co-parents/accept")
+    @Operation(summary = "Chấp nhận lời mời đồng nuôi")
+    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody AcceptInvitationRequest request) {
+        petService.acceptInvitation(principal, request);
+        return ResponseEntity.ok(ApiResponse.success("Bạn đã trở thành đồng nuôi thành công", null));
+    }
+}

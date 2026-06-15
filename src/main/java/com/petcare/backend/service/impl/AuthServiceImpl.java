@@ -69,11 +69,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Email đã được sử dụng");
         }
 
+        String phoneNumber = trimToNull(request.getPhoneNumber());
+        if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new BadRequestException("Số điện thoại đã được sử dụng");
+        }
+
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName().trim());
-        user.setPhoneNumber(request.getPhoneNumber());
+        user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
         saveUserDeviceIfPresent(savedUser, request.getDevice());

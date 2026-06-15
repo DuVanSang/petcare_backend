@@ -1,17 +1,17 @@
 package com.petcare.backend.service.impl;
 
-import com.petcare.backend.dto.auth.response.AuthResponse;
-import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
+import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
 import com.petcare.backend.dto.auth.request.RefreshTokenRequest;
 import com.petcare.backend.dto.auth.request.RegisterRequest;
-import com.petcare.backend.dto.auth.response.RegisterResponse;
 import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
 import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
-import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
+import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.response.RegisterResponse;
+import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
@@ -271,12 +271,9 @@ public class AuthServiceImpl implements AuthService {
                 .orElseGet(UserDevice::new);
         userDevice.setUser(user);
         userDevice.setDeviceId(deviceId.trim());
-        userDevice.setDeviceName(trimToNull(device.getDeviceName()));
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
         userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(Boolean.TRUE.equals(device.getNotificationEnabled()));
-        userDevice.setAppVersion(trimToNull(device.getAppVersion()));
-        userDevice.setOsVersion(trimToNull(device.getOsVersion()));
+        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDeviceRepository.save(userDevice);
     }

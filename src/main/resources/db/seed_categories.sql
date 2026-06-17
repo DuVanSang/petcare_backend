@@ -99,3 +99,11 @@ INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
 (6, 'Cá Neon Tetra'),
 (6, 'Cá thần tiên (Angelfish)'),
 (6, 'Khác');
+
+-- ============================================================
+-- Giống cho loài còn thiếu mục "Khác"
+-- ============================================================
+INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(5, 'Hỗn hợp / Không rõ'),
+(7, 'Khác'),
+(8, 'Khác');

@@ -19,10 +19,10 @@ public class Species {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 50)
     private String name;
 
-    @Column(name = "icon_url", length = 500)
+    @Column(name = "icon_url", length = 255)
     private String iconUrl;
 
     @OneToMany(mappedBy = "species", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

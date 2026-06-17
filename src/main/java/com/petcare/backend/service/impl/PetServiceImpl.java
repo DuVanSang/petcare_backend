@@ -10,18 +10,29 @@ import com.petcare.backend.dto.pet.response.PetSummaryResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.Breed;
 import com.petcare.backend.model.CoParentInvitation;
+import com.petcare.backend.model.HealthCondition;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetCoParent;
+import com.petcare.backend.model.PetTimelineEvent;
+import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.Species;
 import com.petcare.backend.model.User;
+import com.petcare.backend.model.VaccineTemplate;
+import com.petcare.backend.model.WeightLog;
 import com.petcare.backend.repository.BreedRepository;
 import com.petcare.backend.repository.CoParentInvitationRepository;
+import com.petcare.backend.repository.HealthConditionRepository;
 import com.petcare.backend.repository.PetCoParentRepository;
 import com.petcare.backend.repository.PetRepository;
+import com.petcare.backend.repository.PetTimelineEventRepository;
+import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.SpeciesRepository;
 import com.petcare.backend.repository.UserRepository;
+import com.petcare.backend.repository.VaccineTemplateRepository;
+import com.petcare.backend.repository.WeightLogRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.PetService;
+import com.petcare.backend.util.BreedCategoryHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,8 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,6 +58,11 @@ public class PetServiceImpl implements PetService {
     private final BreedRepository breedRepository;
     private final PetCoParentRepository coParentRepository;
     private final CoParentInvitationRepository invitationRepository;
+    private final WeightLogRepository weightLogRepository;
+    private final HealthConditionRepository healthConditionRepository;
+    private final VaccineTemplateRepository vaccineTemplateRepository;
+    private final PetVaccinationRepository petVaccinationRepository;
+    private final PetTimelineEventRepository petTimelineEventRepository;
 
     // ========================
     // PET CRUD
@@ -60,14 +76,20 @@ public class PetServiceImpl implements PetService {
         Pet pet = new Pet();
         pet.setOwner(owner);
         pet.setName(request.getName().trim());
+        if (StringUtils.hasText(request.getAvatarUrl())) {
+            pet.setAvatarUrl(request.getAvatarUrl().trim());
+        }
 
         applyPetFields(pet, request.getSpeciesId(), request.getBreedId(),
+                request.getCustomBreedName(),
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
                 request.getColorFeatures(), request.getSpayedStatus(),
-                request.getNotes(), null);
+                request.getNotes(), request.getStatus());
 
         Pet saved = petRepository.save(pet);
+        initializePetRecords(saved, owner, request);
+
         return PetResponse.from(saved, "owner");
     }
 
@@ -109,6 +131,7 @@ public class PetServiceImpl implements PetService {
         }
 
         applyPetFields(pet, request.getSpeciesId(), request.getBreedId(),
+                request.getCustomBreedName(),
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
                 request.getColorFeatures(), request.getSpayedStatus(),
@@ -189,7 +212,7 @@ public class PetServiceImpl implements PetService {
         invitation.setInviteeEmail(inviteeEmail);
         invitation.setInviteCode(generateInviteCode());
         invitation.setRole(request.getRole());
-        invitation.setExpiresAt(LocalDateTime.now().plusDays(7));
+        invitation.setExpiresAt(LocalDateTime.now().plusHours(24));
         invitationRepository.save(invitation);
 
         log.info("Co-parent invite code for {} to join pet '{}': {}",
@@ -253,7 +276,7 @@ public class PetServiceImpl implements PetService {
                 .orElse("viewer");
     }
 
-    private void applyPetFields(Pet pet, Long speciesId, Long breedId,
+    private void applyPetFields(Pet pet, Long speciesId, Long breedId, String customBreedName,
                                 Pet.Gender gender, java.time.LocalDate dateOfBirth,
                                 Integer estimatedAgeMonths, java.math.BigDecimal currentWeight,
                                 String colorFeatures, Pet.SpayedStatus spayedStatus,
@@ -268,11 +291,13 @@ public class PetServiceImpl implements PetService {
         if (breedId != null) {
             Breed breed = breedRepository.findById(breedId)
                     .orElseThrow(() -> new BadRequestException("Giống không tồn tại"));
-            // Validate breed thuộc species
             if (pet.getSpecies() != null && !breed.getSpecies().getId().equals(pet.getSpecies().getId())) {
                 throw new BadRequestException("Giống không thuộc loài đã chọn");
             }
             pet.setBreed(breed);
+            applyCustomBreedName(pet, breed, customBreedName);
+        } else if (StringUtils.hasText(customBreedName)) {
+            throw new BadRequestException("Không thể nhập giống tự do khi chưa chọn giống từ danh sách");
         }
 
         if (gender != null) pet.setGender(gender);
@@ -285,9 +310,87 @@ public class PetServiceImpl implements PetService {
         if (status != null) pet.setStatus(status);
     }
 
+    private void initializePetRecords(Pet pet, User owner, CreatePetRequest request) {
+        saveHealthConditions(pet, request.getAllergies(), HealthCondition.ConditionType.allergy);
+        saveHealthConditions(pet, request.getMedicalConditions(), HealthCondition.ConditionType.chronic_disease);
+
+        if (pet.getCurrentWeight() != null) {
+            WeightLog weightLog = new WeightLog();
+            weightLog.setPet(pet);
+            weightLog.setWeight(pet.getCurrentWeight());
+            weightLog.setLoggedDate(LocalDate.now());
+            weightLog.setLoggedBy(owner);
+            weightLogRepository.save(weightLog);
+        }
+
+        if (pet.getSpecies() != null) {
+            generateVaccinationSchedule(pet);
+        }
+
+        PetTimelineEvent event = new PetTimelineEvent();
+        event.setPet(pet);
+        event.setEventType(PetTimelineEvent.EventType.profile_created);
+        event.setReferenceId(pet.getId());
+        event.setEventDate(LocalDate.now());
+        event.setSummary("Hồ sơ bé " + pet.getName() + " đã được khởi tạo thành công.");
+        petTimelineEventRepository.save(event);
+    }
+
+    private void saveHealthConditions(Pet pet, List<String> titles, HealthCondition.ConditionType type) {
+        if (titles == null) {
+            return;
+        }
+        for (String title : titles) {
+            if (!StringUtils.hasText(title)) {
+                continue;
+            }
+            HealthCondition condition = new HealthCondition();
+            condition.setPet(pet);
+            condition.setType(type);
+            condition.setTitle(title.trim());
+            condition.setIsActive(true);
+            healthConditionRepository.save(condition);
+        }
+    }
+
+    private void generateVaccinationSchedule(Pet pet) {
+        LocalDate birthReference = resolveBirthReferenceDate(pet);
+        List<VaccineTemplate> templates = vaccineTemplateRepository.findBySpeciesId(pet.getSpecies().getId());
+
+        for (VaccineTemplate template : templates) {
+            PetVaccination vaccination = new PetVaccination();
+            vaccination.setPet(pet);
+            vaccination.setVaccineTemplate(template);
+            vaccination.setVaccineName(template.getVaccineName());
+            vaccination.setDoseNumber(template.getDoseNumber());
+            vaccination.setStatus(PetVaccination.VaccinationStatus.scheduled);
+            vaccination.setScheduledDate(birthReference.plusWeeks(template.getRecommendedAgeWeeks()));
+            petVaccinationRepository.save(vaccination);
+        }
+    }
+
+    private LocalDate resolveBirthReferenceDate(Pet pet) {
+        if (pet.getDateOfBirth() != null) {
+            return pet.getDateOfBirth();
+        }
+        if (pet.getEstimatedAgeMonths() != null && pet.getEstimatedAgeMonths() > 0) {
+            return LocalDate.now().minusMonths(pet.getEstimatedAgeMonths());
+        }
+        return LocalDate.now();
+    }
+
+    private void applyCustomBreedName(Pet pet, Breed breed, String customBreedName) {
+        if (BreedCategoryHelper.isOtherBreed(breed)) {
+            if (!StringUtils.hasText(customBreedName)) {
+                throw new BadRequestException("Vui lòng nhập giống thú cưng khi chọn \"Khác\"");
+            }
+            pet.setCustomBreedName(customBreedName.trim());
+        } else {
+            pet.setCustomBreedName(null);
+        }
+    }
+
     private String generateInviteCode() {
-        byte[] bytes = new byte[9];
-        RANDOM.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        return "PET-" + String.format("%06d", RANDOM.nextInt(1_000_000));
     }
 }

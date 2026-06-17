@@ -1,6 +1,7 @@
 package com.petcare.backend.dto.pet.response;
 
 import com.petcare.backend.model.Pet;
+import com.petcare.backend.util.BreedCategoryHelper;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,7 +27,7 @@ public class PetSummaryResponse {
         dto.setName(pet.getName());
         dto.setAvatarUrl(pet.getAvatarUrl());
         dto.setSpeciesName(pet.getSpecies() != null ? pet.getSpecies().getName() : null);
-        dto.setBreedName(pet.getBreed() != null ? pet.getBreed().getName() : null);
+        dto.setBreedName(BreedCategoryHelper.displayBreedName(pet.getBreed(), pet.getCustomBreedName()));
         dto.setGender(pet.getGender() != null ? pet.getGender().name() : null);
         dto.setStatus(pet.getStatus() != null ? pet.getStatus().name() : null);
         dto.setMyRole(myRole);

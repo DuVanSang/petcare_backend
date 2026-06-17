@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface BreedRepository extends JpaRepository<Breed, Long> {
     List<Breed> findBySpeciesId(Long speciesId);
+
+    boolean existsBySpeciesIdAndNameIgnoreCase(Long speciesId, String name);
 }

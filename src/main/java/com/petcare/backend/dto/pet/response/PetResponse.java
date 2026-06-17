@@ -1,6 +1,8 @@
 package com.petcare.backend.dto.pet.response;
 
 import com.petcare.backend.model.Pet;
+import com.petcare.backend.util.BreedCategoryHelper;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,6 +27,9 @@ public class PetResponse {
     private String speciesName;
     private Long breedId;
     private String breedName;
+
+    @Schema(description = "Giống tự nhập (khi chọn Khác trên dropdown)")
+    private String customBreedName;
 
     // Bio
     private String gender;
@@ -57,7 +62,8 @@ public class PetResponse {
         }
         if (pet.getBreed() != null) {
             dto.setBreedId(pet.getBreed().getId());
-            dto.setBreedName(pet.getBreed().getName());
+            dto.setBreedName(BreedCategoryHelper.displayBreedName(pet.getBreed(), pet.getCustomBreedName()));
+            dto.setCustomBreedName(pet.getCustomBreedName());
         }
 
         dto.setGender(pet.getGender() != null ? pet.getGender().name() : null);

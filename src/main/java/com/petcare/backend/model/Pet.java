@@ -42,6 +42,10 @@ public class Pet {
     @JoinColumn(name = "breed_id")
     private Breed breed;
 
+    /** Giống tự nhập khi chọn "Khác" / "Hỗn hợp / Không rõ" trên dropdown */
+    @Column(name = "custom_breed_name", length = 100)
+    private String customBreedName;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
     private Gender gender;

@@ -35,7 +35,5 @@ public class CreatePetRequest {
 
     private Pet.SpayedStatus spayedStatus;
 
-    private String microchipNumber;
-
     private String notes;
 }

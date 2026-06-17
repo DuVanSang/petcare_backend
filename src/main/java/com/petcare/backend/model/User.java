@@ -37,13 +37,13 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @Column(name = "language", nullable = false, length = 10)
+    @Column(name = "language_code", nullable = false, length = 10)
     private String languageCode = "vi";
 
     @Column(nullable = false, length = 50)
     private String timezone = "Asia/Ho_Chi_Minh";
 
-    @Column(name = "push_notifications_enabled", nullable = false)
+    @Column(name = "push_notification_enabled", nullable = false)
     private Boolean pushNotificationEnabled = true;
 
     @Column(nullable = false)

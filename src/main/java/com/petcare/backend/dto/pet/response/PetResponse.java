@@ -33,7 +33,6 @@ public class PetResponse {
     private BigDecimal currentWeight;
     private String colorFeatures;
     private String spayedStatus;
-    private String microchipNumber;
     private String status;
     private String notes;
 
@@ -67,7 +66,6 @@ public class PetResponse {
         dto.setCurrentWeight(pet.getCurrentWeight());
         dto.setColorFeatures(pet.getColorFeatures());
         dto.setSpayedStatus(pet.getSpayedStatus() != null ? pet.getSpayedStatus().name() : null);
-        dto.setMicrochipNumber(pet.getMicrochipNumber());
         dto.setStatus(pet.getStatus() != null ? pet.getStatus().name() : null);
         dto.setNotes(pet.getNotes());
         dto.setCreatedAt(pet.getCreatedAt());

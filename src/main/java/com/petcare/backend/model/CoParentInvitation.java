@@ -27,10 +27,10 @@ public class CoParentInvitation {
     @JoinColumn(name = "inviter_id", nullable = false)
     private User inviter;
 
-    @Column(name = "invitee_email", nullable = false, length = 255)
+    @Column(name = "invitee_email", length = 255)
     private String inviteeEmail;
 
-    @Column(name = "invite_code", nullable = false, unique = true, length = 64)
+    @Column(name = "invite_code", nullable = false, unique = true, length = 20)
     private String inviteCode;
 
     @Enumerated(EnumType.STRING)
@@ -51,6 +51,6 @@ public class CoParentInvitation {
     // ========== Enum ==========
 
     public enum InvitationStatus {
-        pending, accepted, expired, cancelled
+        pending, accepted, expired, revoked
     }
 }

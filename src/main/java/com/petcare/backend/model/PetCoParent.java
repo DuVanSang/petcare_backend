@@ -37,12 +37,12 @@ public class PetCoParent {
     private LocalDateTime joinedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invited_by")
+    @JoinColumn(name = "invited_by", nullable = false)
     private User invitedBy;
 
     // ========== Enum ==========
 
     public enum CoParentRole {
-        owner, editor, viewer
+        editor, viewer
     }
 }

@@ -62,9 +62,6 @@ public class Pet {
     @Column(name = "spayed_status", length = 20)
     private SpayedStatus spayedStatus = SpayedStatus.unknown;
 
-    @Column(name = "microchip_number", length = 50)
-    private String microchipNumber;
-
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private PetStatus status = PetStatus.active;
@@ -90,10 +87,10 @@ public class Pet {
     }
 
     public enum SpayedStatus {
-        yes, no, unknown
+        spayed, intact, unknown
     }
 
     public enum PetStatus {
-        active, deceased, lost, rehomed
+        active, archived, deceased
     }
 }

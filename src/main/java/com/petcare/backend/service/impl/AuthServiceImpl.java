@@ -16,8 +16,10 @@ import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
 import com.petcare.backend.model.User;
+import com.petcare.backend.model.UserDevice;
 import com.petcare.backend.repository.PasswordResetTokenRepository;
 import com.petcare.backend.repository.RefreshTokenRepository;
+import com.petcare.backend.repository.UserDeviceRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.JwtService;
 import com.petcare.backend.security.UserPrincipal;
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserDeviceRepository userDeviceRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -126,8 +129,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
+        upsertUserDevice(user, request.getDevice());
+
         String accessToken = jwtService.generateToken(principal);
-        String refreshToken = createRefreshToken(user, request.getDevice()).getToken();
+        String refreshToken = createRefreshToken(user).getToken();
         return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
     }
 
@@ -141,17 +146,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        String newAccessToken = jwtService.generateToken(UserPrincipal.from(user));
-        
-        DeviceInfoRequest oldDeviceInfo = null;
-        if (refreshToken.getDeviceToken() != null || refreshToken.getDeviceType() != null) {
-            oldDeviceInfo = new DeviceInfoRequest();
-            oldDeviceInfo.setDeviceToken(refreshToken.getDeviceToken());
-            oldDeviceInfo.setDeviceType(refreshToken.getDeviceType());
-        }
-        
         revokeRefreshToken(refreshToken);
-        String newRefreshToken = createRefreshToken(user, oldDeviceInfo).getToken();
+        String newAccessToken = jwtService.generateToken(UserPrincipal.from(user));
+        String newRefreshToken = createRefreshToken(user).getToken();
 
         return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", UserResponse.from(user));
     }
@@ -160,7 +157,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(LogoutRequest request) {
         refreshTokenRepository.findByToken(request.getRefreshToken())
-                .filter(refreshToken -> !Boolean.TRUE.equals(refreshToken.getIsRevoked()))
+                .filter(token -> !token.isRevoked())
                 .ifPresent(this::revokeRefreshToken);
     }
 
@@ -205,29 +202,19 @@ public class AuthServiceImpl implements AuthService {
         revokeAllActiveRefreshTokens(user.getId());
     }
 
-    private RefreshToken createRefreshToken(User user, DeviceInfoRequest device) {
+    private RefreshToken createRefreshToken(User user) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setToken(generateRefreshTokenValue());
         refreshToken.setExpiresAt(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenExpirationMs)));
-        
-        if (device != null) {
-            refreshToken.setDeviceToken(trimToNull(device.getDeviceToken()));
-            refreshToken.setDeviceType(trimToNull(device.getDeviceType()));
-        }
-        
         return refreshTokenRepository.save(refreshToken);
-    }
-
-    private RefreshToken createRefreshToken(User user) {
-        return createRefreshToken(user, null);
     }
 
     private RefreshToken validateRefreshToken(String tokenValue) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(tokenValue)
                 .orElseThrow(() -> new BadRequestException("Refresh token không hợp lệ"));
 
-        if (Boolean.TRUE.equals(refreshToken.getIsRevoked())) {
+        if (refreshToken.isRevoked()) {
             throw new BadRequestException("Refresh token đã bị thu hồi");
         }
 
@@ -239,12 +226,34 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void revokeRefreshToken(RefreshToken refreshToken) {
-        refreshToken.setIsRevoked(true);
+        refreshToken.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(refreshToken);
     }
 
     private void revokeAllActiveRefreshTokens(Long userId) {
-        refreshTokenRepository.findByUserIdAndIsRevokedFalse(userId).forEach(this::revokeRefreshToken);
+        refreshTokenRepository.findByUserIdAndRevokedAtIsNull(userId).forEach(this::revokeRefreshToken);
+    }
+
+    private void upsertUserDevice(User user, DeviceInfoRequest device) {
+        if (device == null || !StringUtils.hasText(device.getDeviceId())) {
+            return;
+        }
+
+        UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
+                .orElseGet(UserDevice::new);
+
+        userDevice.setUser(user);
+        userDevice.setDeviceId(device.getDeviceId().trim());
+        userDevice.setDeviceName(trimToNull(device.getDeviceName()));
+        userDevice.setDeviceType(StringUtils.hasText(device.getDeviceType()) ? device.getDeviceType().trim() : "unknown");
+        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
+        userDevice.setNotificationEnabled(device.getNotificationEnabled() != null ? device.getNotificationEnabled() : true);
+        userDevice.setAppVersion(trimToNull(device.getAppVersion()));
+        userDevice.setOsVersion(trimToNull(device.getOsVersion()));
+        userDevice.setLastActiveAt(LocalDateTime.now());
+        userDevice.setLastLoginAt(LocalDateTime.now());
+
+        userDeviceRepository.save(userDevice);
     }
 
     private String generateRefreshTokenValue() {

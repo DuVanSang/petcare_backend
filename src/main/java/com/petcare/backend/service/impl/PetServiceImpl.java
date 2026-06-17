@@ -65,7 +65,7 @@ public class PetServiceImpl implements PetService {
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
                 request.getColorFeatures(), request.getSpayedStatus(),
-                request.getMicrochipNumber(), request.getNotes(), null);
+                request.getNotes(), null);
 
         Pet saved = petRepository.save(pet);
         return PetResponse.from(saved, "owner");
@@ -112,7 +112,7 @@ public class PetServiceImpl implements PetService {
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
                 request.getColorFeatures(), request.getSpayedStatus(),
-                request.getMicrochipNumber(), request.getNotes(), request.getStatus());
+                request.getNotes(), request.getStatus());
 
         Pet saved = petRepository.save(pet);
         return PetResponse.from(saved, role);
@@ -178,7 +178,7 @@ public class PetServiceImpl implements PetService {
         invitationRepository.findByPetIdAndInviteeEmailAndStatus(
                 petId, inviteeEmail, CoParentInvitation.InvitationStatus.pending
         ).ifPresent(old -> {
-            old.setStatus(CoParentInvitation.InvitationStatus.cancelled);
+            old.setStatus(CoParentInvitation.InvitationStatus.revoked);
             invitationRepository.save(old);
         });
 
@@ -257,7 +257,7 @@ public class PetServiceImpl implements PetService {
                                 Pet.Gender gender, java.time.LocalDate dateOfBirth,
                                 Integer estimatedAgeMonths, java.math.BigDecimal currentWeight,
                                 String colorFeatures, Pet.SpayedStatus spayedStatus,
-                                String microchipNumber, String notes, Pet.PetStatus status) {
+                                String notes, Pet.PetStatus status) {
 
         if (speciesId != null) {
             Species species = speciesRepository.findById(speciesId)
@@ -281,13 +281,12 @@ public class PetServiceImpl implements PetService {
         if (currentWeight != null) pet.setCurrentWeight(currentWeight);
         if (StringUtils.hasText(colorFeatures)) pet.setColorFeatures(colorFeatures);
         if (spayedStatus != null) pet.setSpayedStatus(spayedStatus);
-        if (StringUtils.hasText(microchipNumber)) pet.setMicrochipNumber(microchipNumber);
         if (StringUtils.hasText(notes)) pet.setNotes(notes);
         if (status != null) pet.setStatus(status);
     }
 
     private String generateInviteCode() {
-        byte[] bytes = new byte[24];
+        byte[] bytes = new byte[9];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }

@@ -33,8 +33,6 @@ public class UpdatePetRequest {
 
     private Pet.SpayedStatus spayedStatus;
 
-    private String microchipNumber;
-
     private Pet.PetStatus status;
 
     private String notes;

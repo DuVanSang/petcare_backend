@@ -1,17 +1,17 @@
 package com.petcare.backend.service.impl;
 
-import com.petcare.backend.dto.auth.response.AuthResponse;
-import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
+import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
 import com.petcare.backend.dto.auth.request.RefreshTokenRequest;
 import com.petcare.backend.dto.auth.request.RegisterRequest;
-import com.petcare.backend.dto.auth.response.RegisterResponse;
 import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
 import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
-import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
+import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.response.RegisterResponse;
+import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
@@ -69,11 +69,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Email đã được sử dụng");
         }
 
+        String phoneNumber = trimToNull(request.getPhoneNumber());
+        if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new BadRequestException("Số điện thoại đã được sử dụng");
+        }
+
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName().trim());
-        user.setPhoneNumber(request.getPhoneNumber());
+        user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
         emailVerificationService.createAndSendOtp(savedUser);
@@ -239,17 +244,19 @@ public class AuthServiceImpl implements AuthService {
             return;
         }
 
+        String deviceType = device.getDeviceType();
+        if (!StringUtils.hasText(deviceType)) {
+            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
+        }
+
         UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
                 .orElseGet(UserDevice::new);
 
         userDevice.setUser(user);
         userDevice.setDeviceId(device.getDeviceId().trim());
-        userDevice.setDeviceName(trimToNull(device.getDeviceName()));
-        userDevice.setDeviceType(StringUtils.hasText(device.getDeviceType()) ? device.getDeviceType().trim() : "unknown");
+        userDevice.setDeviceType(deviceType.trim().toLowerCase());
         userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(device.getNotificationEnabled() != null ? device.getNotificationEnabled() : true);
-        userDevice.setAppVersion(trimToNull(device.getAppVersion()));
-        userDevice.setOsVersion(trimToNull(device.getOsVersion()));
+        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDevice.setLastLoginAt(LocalDateTime.now());
 

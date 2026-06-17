@@ -84,8 +84,6 @@ public class Pet {
     @OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PetCoParent> coParents = new ArrayList<>();
 
-    // ========== Enums ==========
-
     public enum Gender {
         male, female, unknown
     }

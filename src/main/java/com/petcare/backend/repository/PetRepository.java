@@ -12,10 +12,8 @@ import java.util.Optional;
 @Repository
 public interface PetRepository extends JpaRepository<Pet, Long> {
 
-    // Lấy pet mà user là owner
     List<Pet> findByOwnerId(Long ownerId);
 
-    // Lấy tất cả pet mà user có thể truy cập (owner hoặc co-parent)
     @Query("""
             SELECT DISTINCT p FROM Pet p
             WHERE p.owner.id = :userId
@@ -27,7 +25,6 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
             """)
     List<Pet> findAllAccessibleByUserId(@Param("userId") Long userId);
 
-    // Lấy 1 pet cụ thể mà user có quyền truy cập
     @Query("""
             SELECT p FROM Pet p
             WHERE p.id = :petId

@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -41,6 +42,24 @@ public class PetVaccination {
 
     @Column(name = "scheduled_date", nullable = false)
     private LocalDate scheduledDate;
+
+    @Column(name = "actual_date")
+    private LocalDate actualDate;
+
+    @Column(name = "administered_by", length = 150)
+    private String administeredBy;
+
+    @Column(name = "clinic_name", length = 150)
+    private String clinicName;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal cost;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
+    @Column(name = "medical_proof_url", length = 500)
+    private String medicalProofUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

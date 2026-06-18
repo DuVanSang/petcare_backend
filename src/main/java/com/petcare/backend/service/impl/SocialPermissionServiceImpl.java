@@ -7,6 +7,7 @@ import com.petcare.backend.model.User;
 import com.petcare.backend.model.enums.PostPrivacy;
 import com.petcare.backend.model.enums.PostStatus;
 import com.petcare.backend.repository.UserRepository;
+import com.petcare.backend.service.FriendService;
 import com.petcare.backend.service.SocialPermissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SocialPermissionServiceImpl implements SocialPermissionService {
     private final UserRepository userRepository;
+    private final FriendService friendService;
 
     @Override
     public void checkUserActive(Long userId) {
@@ -71,9 +73,9 @@ public class SocialPermissionServiceImpl implements SocialPermissionService {
             return true;
         }
 
-        // TODO: Allow FOLLOWERS posts after Follow module exists.
-        return PostPrivacy.FOLLOWERS.equals(post.getPrivacy())
-                && isAcceptedFollower(currentUserId, post.getUser().getId());
+        return PostPrivacy.FRIENDS.equals(post.getPrivacy())
+                && post.getUser() != null
+                && friendService.areFriends(currentUserId, post.getUser().getId());
     }
 
     @Override
@@ -84,9 +86,4 @@ public class SocialPermissionServiceImpl implements SocialPermissionService {
                 && currentUserId.equals(post.getUser().getId());
     }
 
-    @Override
-    public boolean isAcceptedFollower(Long followerId, Long followingId) {
-        // TODO: Implement after Follow module exists.
-        return false;
-    }
 }

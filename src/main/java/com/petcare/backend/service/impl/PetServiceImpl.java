@@ -31,6 +31,7 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.repository.WeightLogRepository;
 import com.petcare.backend.security.UserPrincipal;
+import com.petcare.backend.service.EmailService;
 import com.petcare.backend.service.PetService;
 import com.petcare.backend.util.BreedCategoryHelper;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,7 @@ public class PetServiceImpl implements PetService {
     private final VaccineTemplateRepository vaccineTemplateRepository;
     private final PetVaccinationRepository petVaccinationRepository;
     private final PetTimelineEventRepository petTimelineEventRepository;
+    private final EmailService emailService;
 
     // ========================
     // PET CRUD
@@ -215,8 +217,13 @@ public class PetServiceImpl implements PetService {
         invitation.setExpiresAt(LocalDateTime.now().plusHours(24));
         invitationRepository.save(invitation);
 
-        log.info("Co-parent invite code for {} to join pet '{}': {}",
-                inviteeEmail, pet.getName(), invitation.getInviteCode());
+        emailService.sendCoParentInvitation(
+                inviteeEmail,
+                owner.getFullName(),
+                pet.getName(),
+                invitation.getInviteCode()
+        );
+        log.info("Co-parent invitation email sent to {} for pet '{}'", inviteeEmail, pet.getName());
     }
 
     @Override

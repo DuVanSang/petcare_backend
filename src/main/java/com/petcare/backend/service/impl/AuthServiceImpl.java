@@ -44,6 +44,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String INVALID_RESET_OTP_MESSAGE = "Mã OTP không hợp lệ hoặc đã hết hạn";
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
@@ -130,6 +131,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(principal.getUsername())
                 .orElseThrow(() -> new BadRequestException("Email hoặc mật khẩu không chính xác"));
 
+        ensureActiveAccount(user);
+
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
@@ -146,6 +149,8 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         RefreshToken refreshToken = validateRefreshToken(request.getRefreshToken());
         User user = refreshToken.getUser();
+
+        ensureActiveAccount(user);
 
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
@@ -188,14 +193,18 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
-                .orElseThrow(() -> new BadRequestException("Mã OTP không hợp lệ"));
+                .orElseThrow(() -> new BadRequestException(INVALID_RESET_OTP_MESSAGE));
+
+        if (!"active".equalsIgnoreCase(user.getStatus())) {
+            throw new BadRequestException(INVALID_RESET_OTP_MESSAGE);
+        }
 
         PasswordResetToken token = passwordResetTokenRepository
                 .findTopByUserIdAndOtpCodeAndUsedAtIsNullOrderByCreatedAtDesc(user.getId(), request.getOtpCode())
-                .orElseThrow(() -> new BadRequestException("Mã OTP không hợp lệ"));
+                .orElseThrow(() -> new BadRequestException(INVALID_RESET_OTP_MESSAGE));
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Mã OTP đã hết hạn");
+            throw new BadRequestException(INVALID_RESET_OTP_MESSAGE);
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -278,6 +287,12 @@ public class AuthServiceImpl implements AuthService {
             token.setUsedAt(LocalDateTime.now());
             passwordResetTokenRepository.save(token);
         });
+    }
+
+    private void ensureActiveAccount(User user) {
+        if (!"active".equalsIgnoreCase(user.getStatus())) {
+            throw new BadRequestException("Tài khoản đã bị khóa");
+        }
     }
 
     private String trimToNull(String value) {

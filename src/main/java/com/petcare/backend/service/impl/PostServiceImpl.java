@@ -29,6 +29,7 @@ import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.FileStorageService;
+import com.petcare.backend.service.FriendService;
 import com.petcare.backend.service.PostMapper;
 import com.petcare.backend.service.PostService;
 import com.petcare.backend.service.SocialPermissionService;
@@ -59,6 +60,7 @@ public class PostServiceImpl implements PostService {
     private final CommentReactionRepository commentReactionRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final FriendService friendService;
     private final PostMapper postMapper;
     private final SocialPermissionService socialPermissionService;
 
@@ -125,9 +127,11 @@ public class PostServiceImpl implements PostService {
     public PageResponse<PostResponse> getPublicPosts(Long currentUserId, int page, int size) {
         socialPermissionService.checkUserActive(currentUserId);
         Pageable pageable = buildPageable(page, size);
-        Page<Post> posts = postRepository.findByStatusAndPrivacyOrderByCreatedAtDesc(
+        Page<Post> posts = postRepository.findVisibleFeedPosts(
+                currentUserId,
                 PostStatus.PUBLISHED,
                 PostPrivacy.PUBLIC,
+                PostPrivacy.FRIENDS,
                 pageable
         );
         return toPostPageResponse(posts, currentUserId);
@@ -161,10 +165,14 @@ public class PostServiceImpl implements PostService {
         }
 
         Pageable pageable = buildPageable(page, size);
-        Page<Post> posts = postRepository.findByUser_IdAndStatusAndPrivacyOrderByCreatedAtDesc(
+        boolean friends = friendService.areFriends(currentUserId, profileUserId);
+        List<PostPrivacy> visiblePrivacy = friends
+                ? List.of(PostPrivacy.PUBLIC, PostPrivacy.FRIENDS)
+                : List.of(PostPrivacy.PUBLIC);
+        Page<Post> posts = postRepository.findByUser_IdAndStatusAndPrivacyInOrderByCreatedAtDesc(
                 profileUserId,
                 PostStatus.PUBLISHED,
-                PostPrivacy.PUBLIC,
+                visiblePrivacy,
                 pageable
         );
         return toPostPageResponse(posts, currentUserId);
@@ -184,6 +192,7 @@ public class PostServiceImpl implements PostService {
                 PostStatus.DELETED,
                 PostStatus.PUBLISHED,
                 PostPrivacy.PUBLIC,
+                PostPrivacy.FRIENDS,
                 pageable
         );
         return toPostPageResponse(posts, currentUserId);
@@ -503,7 +512,9 @@ public class PostServiceImpl implements PostService {
         try {
             return PostPrivacy.fromValue(value);
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid post privacy");
+            throw new BadRequestException(
+                    "Invalid post privacy. Allowed values: public, friends, private."
+            );
         }
     }
 

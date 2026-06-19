@@ -9,9 +9,14 @@ import lombok.Setter;
 @Getter
 @Setter
 public class LoginRequest {
+
     @Email(message = "Email không đúng định dạng")
     @NotBlank(message = "Email không được để trống")
     private String email;
+
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim();
+    }
 
     @NotBlank(message = "Mật khẩu không được để trống")
     private String password;

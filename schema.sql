@@ -263,26 +263,6 @@ CREATE TABLE `email_verification_tokens` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `emr_attachments`
---
-
-DROP TABLE IF EXISTS `emr_attachments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `emr_attachments` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `emr_record_id` bigint unsigned NOT NULL,
-  `file_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `file_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `file_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `fk_emr_attachments_record` (`emr_record_id`),
-  CONSTRAINT `fk_emr_attachments_record` FOREIGN KEY (`emr_record_id`) REFERENCES `emr_records` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `emr_records`
 --
 
@@ -300,6 +280,7 @@ CREATE TABLE `emr_records` (
   `diagnosis` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `prescription_details` text COLLATE utf8mb4_unicode_ci,
   `notes` text COLLATE utf8mb4_unicode_ci,
+  `attachments` text COLLATE utf8mb4_unicode_ci COMMENT 'Mảng JSON tệp đính kèm: [{"file_name":"xray.jpg","file_url":"url","file_type":"image/jpeg"}]',
   `created_by` bigint unsigned NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -363,7 +344,7 @@ CREATE TABLE `health_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `pet_id` bigint unsigned NOT NULL,
   `logged_date` date NOT NULL,
-  `appetite` enum('normal','poor','no_food','excessive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
+  `appetite` enum('good','normal','poor') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
   `activity_level` enum('low','moderate','high','lethargic') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'moderate',
   `abnormal_event` text COLLATE utf8mb4_unicode_ci,
   `treatment_notes` text COLLATE utf8mb4_unicode_ci,

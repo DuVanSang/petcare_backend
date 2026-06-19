@@ -46,9 +46,9 @@ public class AuthServiceImpl implements AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
+    private final UserDeviceRepository userDeviceRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserDeviceRepository userDeviceRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -81,6 +81,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
+        saveUserDeviceIfPresent(savedUser, request.getDevice());
         emailVerificationService.createAndSendOtp(savedUser);
 
         return new RegisterResponse(savedUser.getId(), savedUser.getEmail(), savedUser.getEmailVerified());
@@ -134,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        upsertUserDevice(user, request.getDevice());
+        saveUserDeviceIfPresent(user, request.getDevice());
 
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
@@ -151,8 +152,8 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        revokeRefreshToken(refreshToken);
         String newAccessToken = jwtService.generateToken(UserPrincipal.from(user));
+        revokeRefreshToken(refreshToken);
         String newRefreshToken = createRefreshToken(user).getToken();
 
         return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", UserResponse.from(user));
@@ -162,7 +163,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(LogoutRequest request) {
         refreshTokenRepository.findByToken(request.getRefreshToken())
-                .filter(token -> !token.isRevoked())
+                .filter(refreshToken -> refreshToken.getRevokedAt() == null)
                 .ifPresent(this::revokeRefreshToken);
     }
 
@@ -219,7 +220,7 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(tokenValue)
                 .orElseThrow(() -> new BadRequestException("Refresh token không hợp lệ"));
 
-        if (refreshToken.isRevoked()) {
+        if (refreshToken.getRevokedAt() != null) {
             throw new BadRequestException("Refresh token đã bị thu hồi");
         }
 
@@ -239,30 +240,6 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.findByUserIdAndRevokedAtIsNull(userId).forEach(this::revokeRefreshToken);
     }
 
-    private void upsertUserDevice(User user, DeviceInfoRequest device) {
-        if (device == null || !StringUtils.hasText(device.getDeviceId())) {
-            return;
-        }
-
-        String deviceType = device.getDeviceType();
-        if (!StringUtils.hasText(deviceType)) {
-            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
-        }
-
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
-                .orElseGet(UserDevice::new);
-
-        userDevice.setUser(user);
-        userDevice.setDeviceId(device.getDeviceId().trim());
-        userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
-        userDevice.setLastActiveAt(LocalDateTime.now());
-        userDevice.setLastLoginAt(LocalDateTime.now());
-
-        userDeviceRepository.save(userDevice);
-    }
-
     private String generateRefreshTokenValue() {
         byte[] bytes = new byte[64];
         RANDOM.nextBytes(bytes);
@@ -278,6 +255,32 @@ public class AuthServiceImpl implements AuthService {
             token.setUsedAt(LocalDateTime.now());
             passwordResetTokenRepository.save(token);
         });
+    }
+
+    private void saveUserDeviceIfPresent(User user, DeviceInfoRequest device) {
+        if (device == null) {
+            return;
+        }
+
+        String deviceId = device.getDeviceId();
+        if (!StringUtils.hasText(deviceId)) {
+            return;
+        }
+
+        String deviceType = device.getDeviceType();
+        if (!StringUtils.hasText(deviceType)) {
+            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
+        }
+
+        UserDevice userDevice = userDeviceRepository.findByDeviceId(deviceId.trim())
+                .orElseGet(UserDevice::new);
+        userDevice.setUser(user);
+        userDevice.setDeviceId(deviceId.trim());
+        userDevice.setDeviceType(deviceType.trim().toLowerCase());
+        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
+        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
+        userDevice.setLastActiveAt(LocalDateTime.now());
+        userDeviceRepository.save(userDevice);
     }
 
     private String trimToNull(String value) {

@@ -3,6 +3,7 @@ package com.petcare.backend.repository;
 import com.petcare.backend.model.Post;
 import com.petcare.backend.model.enums.PostPrivacy;
 import com.petcare.backend.model.enums.PostStatus;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,9 +31,45 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             Pageable pageable
     );
 
+    Page<Post> findByUser_IdAndStatusAndPrivacyInOrderByCreatedAtDesc(
+            Long userId,
+            PostStatus status,
+            Collection<PostPrivacy> privacy,
+            Pageable pageable
+    );
+
     Page<Post> findByStatusAndPrivacyOrderByCreatedAtDesc(
             PostStatus status,
             PostPrivacy privacy,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT p
+            FROM Post p
+            WHERE p.status = :publishedStatus
+              AND (
+                    p.privacy = :publicPrivacy
+                    OR (
+                        p.privacy = :friendsPrivacy
+                        AND (
+                            p.user.id = :currentUserId
+                            OR EXISTS (
+                                SELECT f
+                                FROM Friendship f
+                                WHERE (f.user1.id = :currentUserId AND f.user2.id = p.user.id)
+                                   OR (f.user1.id = p.user.id AND f.user2.id = :currentUserId)
+                            )
+                        )
+                    )
+              )
+            ORDER BY p.createdAt DESC
+            """)
+    Page<Post> findVisibleFeedPosts(
+            @Param("currentUserId") Long currentUserId,
+            @Param("publishedStatus") PostStatus publishedStatus,
+            @Param("publicPrivacy") PostPrivacy publicPrivacy,
+            @Param("friendsPrivacy") PostPrivacy friendsPrivacy,
             Pageable pageable
     );
 
@@ -57,7 +94,21 @@ public interface PostRepository extends JpaRepository<Post, Long> {
               AND p.status <> :deletedStatus
               AND (
                     p.user.id = :currentUserId
-                    OR (p.status = :publishedStatus AND p.privacy = :publicPrivacy)
+                    OR (
+                        p.status = :publishedStatus
+                        AND (
+                            p.privacy = :publicPrivacy
+                            OR (
+                                p.privacy = :friendsPrivacy
+                                AND EXISTS (
+                                    SELECT f
+                                    FROM Friendship f
+                                    WHERE (f.user1.id = :currentUserId AND f.user2.id = p.user.id)
+                                       OR (f.user1.id = p.user.id AND f.user2.id = :currentUserId)
+                                )
+                            )
+                        )
+                    )
               )
             ORDER BY p.createdAt DESC
             """)
@@ -67,6 +118,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("deletedStatus") PostStatus deletedStatus,
             @Param("publishedStatus") PostStatus publishedStatus,
             @Param("publicPrivacy") PostPrivacy publicPrivacy,
+            @Param("friendsPrivacy") PostPrivacy friendsPrivacy,
             Pageable pageable
     );
 }

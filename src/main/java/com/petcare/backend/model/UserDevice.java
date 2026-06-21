@@ -38,11 +38,11 @@ public class UserDevice {
     @Column(name = "device_type", nullable = false)
     private String deviceType;
 
-    @Column(name = "device_token", unique = true, length = 512)
+    @Column(name = "device_token", length = 512)
     private String deviceToken;
 
     @Column(name = "notification_enabled", nullable = false)
-    private Boolean notificationEnabled = false;
+    private Boolean notificationEnabled = true;
 
     @Column(name = "app_version", length = 50)
     private String appVersion;
@@ -52,6 +52,9 @@ public class UserDevice {
 
     @Column(name = "last_active_at")
     private LocalDateTime lastActiveAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -64,6 +67,8 @@ public class UserDevice {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        lastLoginAt = now;
+        lastActiveAt = now;
     }
 
     @PreUpdate

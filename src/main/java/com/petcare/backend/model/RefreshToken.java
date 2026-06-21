@@ -21,11 +21,10 @@ import lombok.Setter;
 public class RefreshToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false, unique = true, length = 128)
@@ -43,5 +42,9 @@ public class RefreshToken {
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();
+    }
+
+    public boolean isRevoked() {
+        return revokedAt != null;
     }
 }

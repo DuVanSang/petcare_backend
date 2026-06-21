@@ -90,7 +90,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserDeviceResponse> getMyDevices(UserPrincipal principal) {
-        return userDeviceRepository.findByUserIdOrderByUpdatedAtDesc(principal.getId())
+        return userDeviceRepository.findByUserId(principal.getId())
                 .stream()
                 .map(UserDeviceResponse::from)
                 .toList();

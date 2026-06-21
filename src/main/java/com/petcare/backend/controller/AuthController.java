@@ -68,7 +68,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
         return ResponseEntity.ok(ApiResponse.success(
-                "Nếu email tồn tại, mã OTP đặt lại mật khẩu sẽ được gửi đến email của bạn",
+                "Nếu email tồn tại và tài khoản đang hoạt động, mã OTP đặt lại mật khẩu sẽ được gửi đến email của bạn",
                 null
         ));
     }

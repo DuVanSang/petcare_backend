@@ -16,6 +16,4 @@ public interface SocialPermissionService {
     boolean canViewPost(Long currentUserId, Post post);
 
     boolean isPostOwner(Long currentUserId, Post post);
-
-    boolean isAcceptedFollower(Long followerId, Long followingId);
 }

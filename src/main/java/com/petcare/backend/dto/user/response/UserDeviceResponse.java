@@ -20,19 +20,19 @@ public class UserDeviceResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static UserDeviceResponse from(UserDevice userDevice) {
+    public static UserDeviceResponse from(UserDevice device) {
         return UserDeviceResponse.builder()
-                .id(userDevice.getId())
-                .deviceId(userDevice.getDeviceId())
-                .deviceName(userDevice.getDeviceName())
-                .deviceType(userDevice.getDeviceType())
-                .deviceToken(userDevice.getDeviceToken())
-                .notificationEnabled(userDevice.getNotificationEnabled())
-                .appVersion(userDevice.getAppVersion())
-                .osVersion(userDevice.getOsVersion())
-                .lastActiveAt(userDevice.getLastActiveAt())
-                .createdAt(userDevice.getCreatedAt())
-                .updatedAt(userDevice.getUpdatedAt())
+                .id(device.getId())
+                .deviceId(device.getDeviceId())
+                .deviceName(device.getDeviceName())
+                .deviceType(device.getDeviceType())
+                .deviceToken(device.getDeviceToken())
+                .notificationEnabled(device.getNotificationEnabled())
+                .appVersion(device.getAppVersion())
+                .osVersion(device.getOsVersion())
+                .lastActiveAt(device.getLastActiveAt())
+                .createdAt(device.getCreatedAt())
+                .updatedAt(device.getUpdatedAt())
                 .build();
     }
 }

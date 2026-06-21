@@ -1,10 +1,8 @@
 package com.petcare.backend.model.enums;
 
-import java.util.Arrays;
-
 public enum PostPrivacy {
     PUBLIC("public"),
-    FOLLOWERS("followers"),
+    FRIENDS("friends"),
     PRIVATE("private");
 
     private final String value;
@@ -18,10 +16,20 @@ public enum PostPrivacy {
     }
 
     public static PostPrivacy fromValue(String value) {
-        String normalizedValue = value == null ? null : value.trim();
-        return Arrays.stream(values())
-                .filter(privacy -> privacy.value.equalsIgnoreCase(normalizedValue))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Invalid post privacy: " + value));
+        if (value == null) {
+            throw new IllegalArgumentException("Post privacy is required");
+        }
+
+        String normalizedValue = value.trim();
+        if ("followers".equalsIgnoreCase(normalizedValue)) {
+            return FRIENDS;
+        }
+
+        for (PostPrivacy privacy : values()) {
+            if (privacy.value.equalsIgnoreCase(normalizedValue)) {
+                return privacy;
+            }
+        }
+        throw new IllegalArgumentException("Invalid post privacy: " + value);
     }
 }

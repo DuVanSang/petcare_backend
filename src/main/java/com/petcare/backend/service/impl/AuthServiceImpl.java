@@ -44,11 +44,12 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String INVALID_RESET_OTP_MESSAGE = "Mã OTP không hợp lệ hoặc đã hết hạn";
 
     private final UserRepository userRepository;
-    private final UserDeviceRepository userDeviceRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserDeviceRepository userDeviceRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -81,7 +82,6 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
-        saveUserDeviceIfPresent(savedUser, request.getDevice());
         emailVerificationService.createAndSendOtp(savedUser);
 
         return new RegisterResponse(savedUser.getId(), savedUser.getEmail(), savedUser.getEmailVerified());
@@ -131,11 +131,13 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(principal.getUsername())
                 .orElseThrow(() -> new BadRequestException("Email hoặc mật khẩu không chính xác"));
 
+        ensureActiveAccount(user);
+
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        saveUserDeviceIfPresent(user, request.getDevice());
+        upsertUserDevice(user, request.getDevice());
 
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
@@ -148,12 +150,14 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken refreshToken = validateRefreshToken(request.getRefreshToken());
         User user = refreshToken.getUser();
 
+        ensureActiveAccount(user);
+
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        String newAccessToken = jwtService.generateToken(UserPrincipal.from(user));
         revokeRefreshToken(refreshToken);
+        String newAccessToken = jwtService.generateToken(UserPrincipal.from(user));
         String newRefreshToken = createRefreshToken(user).getToken();
 
         return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", UserResponse.from(user));
@@ -163,7 +167,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(LogoutRequest request) {
         refreshTokenRepository.findByToken(request.getRefreshToken())
-                .filter(refreshToken -> refreshToken.getRevokedAt() == null)
+                .filter(token -> !token.isRevoked())
                 .ifPresent(this::revokeRefreshToken);
     }
 
@@ -189,14 +193,18 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
-                .orElseThrow(() -> new BadRequestException("Mã OTP không hợp lệ"));
+                .orElseThrow(() -> new BadRequestException(INVALID_RESET_OTP_MESSAGE));
+
+        if (!"active".equalsIgnoreCase(user.getStatus())) {
+            throw new BadRequestException(INVALID_RESET_OTP_MESSAGE);
+        }
 
         PasswordResetToken token = passwordResetTokenRepository
                 .findTopByUserIdAndOtpCodeAndUsedAtIsNullOrderByCreatedAtDesc(user.getId(), request.getOtpCode())
-                .orElseThrow(() -> new BadRequestException("Mã OTP không hợp lệ"));
+                .orElseThrow(() -> new BadRequestException(INVALID_RESET_OTP_MESSAGE));
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Mã OTP đã hết hạn");
+            throw new BadRequestException(INVALID_RESET_OTP_MESSAGE);
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -220,7 +228,7 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(tokenValue)
                 .orElseThrow(() -> new BadRequestException("Refresh token không hợp lệ"));
 
-        if (refreshToken.getRevokedAt() != null) {
+        if (refreshToken.isRevoked()) {
             throw new BadRequestException("Refresh token đã bị thu hồi");
         }
 
@@ -240,6 +248,30 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.findByUserIdAndRevokedAtIsNull(userId).forEach(this::revokeRefreshToken);
     }
 
+    private void upsertUserDevice(User user, DeviceInfoRequest device) {
+        if (device == null || !StringUtils.hasText(device.getDeviceId())) {
+            return;
+        }
+
+        String deviceType = device.getDeviceType();
+        if (!StringUtils.hasText(deviceType)) {
+            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
+        }
+
+        UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
+                .orElseGet(UserDevice::new);
+
+        userDevice.setUser(user);
+        userDevice.setDeviceId(device.getDeviceId().trim());
+        userDevice.setDeviceType(deviceType.trim().toLowerCase());
+        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
+        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
+        userDevice.setLastActiveAt(LocalDateTime.now());
+        userDevice.setLastLoginAt(LocalDateTime.now());
+
+        userDeviceRepository.save(userDevice);
+    }
+
     private String generateRefreshTokenValue() {
         byte[] bytes = new byte[64];
         RANDOM.nextBytes(bytes);
@@ -257,30 +289,10 @@ public class AuthServiceImpl implements AuthService {
         });
     }
 
-    private void saveUserDeviceIfPresent(User user, DeviceInfoRequest device) {
-        if (device == null) {
-            return;
+    private void ensureActiveAccount(User user) {
+        if (!"active".equalsIgnoreCase(user.getStatus())) {
+            throw new BadRequestException("Tài khoản đã bị khóa");
         }
-
-        String deviceId = device.getDeviceId();
-        if (!StringUtils.hasText(deviceId)) {
-            return;
-        }
-
-        String deviceType = device.getDeviceType();
-        if (!StringUtils.hasText(deviceType)) {
-            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
-        }
-
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(deviceId.trim())
-                .orElseGet(UserDevice::new);
-        userDevice.setUser(user);
-        userDevice.setDeviceId(deviceId.trim());
-        userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
-        userDevice.setLastActiveAt(LocalDateTime.now());
-        userDeviceRepository.save(userDevice);
     }
 
     private String trimToNull(String value) {

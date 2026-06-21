@@ -25,12 +25,12 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendVerificationOtp(String toEmail, String otpCode) {
-        if ("smtp".equalsIgnoreCase(mailProvider)) {
-            sendOtpWithSmtp(
-                    toEmail,
-                    "PetCare - Mã xác thực email",
-                    "Mã OTP xác thực email của bạn là: " + otpCode + ". Mã có hiệu lực trong 10 phút."
-            );
+        String subject = "PetCare - Mã xác thực email";
+        String body = "Mã OTP xác thực email của bạn là: " + otpCode
+                + ". Mã có hiệu lực trong 10 phút.";
+
+        if (isSmtpProvider()) {
+            sendWithSmtp(toEmail, subject, body);
             return;
         }
 
@@ -39,19 +39,46 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendPasswordResetOtp(String toEmail, String otpCode) {
-        if ("smtp".equalsIgnoreCase(mailProvider)) {
-            sendOtpWithSmtp(
-                    toEmail,
-                    "PetCare - Mã đặt lại mật khẩu",
-                    "Mã OTP đặt lại mật khẩu của bạn là: " + otpCode + ". Mã có hiệu lực trong 10 phút."
-            );
+        String subject = "PetCare - Mã đặt lại mật khẩu";
+        String body = "Mã OTP đặt lại mật khẩu của bạn là: " + otpCode
+                + ". Mã có hiệu lực trong 10 phút.";
+
+        if (isSmtpProvider()) {
+            sendWithSmtp(toEmail, subject, body);
             return;
         }
 
         log.info("Password reset OTP for {}: {}", toEmail, otpCode);
     }
 
-    private void sendOtpWithSmtp(String toEmail, String subject, String body) {
+    @Override
+    public void sendCoParentInvitation(String toEmail, String inviterName, String petName, String inviteCode) {
+        String subject = "PetCare - Lời mời đồng nuôi";
+        String body = """
+                Xin chào,
+
+                %s đã mời bạn trở thành đồng nuôi của thú cưng "%s" trên PetCare.
+
+                Mã mời của bạn là: %s
+
+                Mã mời có hiệu lực trong 24 giờ. Vui lòng đăng nhập đúng tài khoản email này để chấp nhận lời mời.
+
+                PetCare
+                """.formatted(inviterName, petName, inviteCode);
+
+        if (isSmtpProvider()) {
+            sendWithSmtp(toEmail, subject, body);
+            return;
+        }
+
+        log.info("Co-parent invitation for {} to join pet '{}'. Invite code: {}", toEmail, petName, inviteCode);
+    }
+
+    private boolean isSmtpProvider() {
+        return "smtp".equalsIgnoreCase(mailProvider);
+    }
+
+    private void sendWithSmtp(String toEmail, String subject, String body) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null || !StringUtils.hasText(senderEmail)) {
             throw new BadRequestException("SMTP mail chưa được cấu hình");

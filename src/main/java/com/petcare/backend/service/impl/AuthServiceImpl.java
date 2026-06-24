@@ -31,7 +31,7 @@ import com.petcare.backend.service.AuthService;
 import com.petcare.backend.service.EmailService;
 import com.petcare.backend.service.EmailVerificationService;
 import com.petcare.backend.service.GoogleTokenService;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.petcare.backend.service.GoogleUserPayload;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -153,7 +153,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
-        GoogleIdToken.Payload payload = googleTokenService.verify(request.getIdToken());
+        GoogleUserPayload payload = googleTokenService.verify(request.getIdToken());
         String googleUserId = payload.getSubject();
         String email = payload.getEmail() == null ? null : payload.getEmail().trim().toLowerCase();
         if (!StringUtils.hasText(email)) {
@@ -176,7 +176,7 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
     }
 
-    private User findOrCreateUserByGoogle(String email, String googleUserId, GoogleIdToken.Payload payload) {
+    private User findOrCreateUserByGoogle(String email, String googleUserId, GoogleUserPayload payload) {
         User user = userRepository.findByEmail(email).orElseGet(() -> createGoogleUser(email, payload));
 
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
@@ -189,11 +189,11 @@ public class AuthServiceImpl implements AuthService {
         return user;
     }
 
-    private User createGoogleUser(String email, GoogleIdToken.Payload payload) {
+    private User createGoogleUser(String email, GoogleUserPayload payload) {
         User user = new User();
         user.setEmail(email);
         user.setFullName(resolveGoogleFullName(payload, email));
-        user.setAvatarUrl((String) payload.get("picture"));
+        user.setAvatarUrl(payload.getPicture());
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(LocalDateTime.now());
         return userRepository.save(user);
@@ -214,8 +214,8 @@ public class AuthServiceImpl implements AuthService {
         userSocialAccountRepository.save(socialAccount);
     }
 
-    private String resolveGoogleFullName(GoogleIdToken.Payload payload, String email) {
-        String name = (String) payload.get("name");
+    private String resolveGoogleFullName(GoogleUserPayload payload, String email) {
+        String name = payload.getName();
         if (StringUtils.hasText(name)) {
             return name.trim();
         }

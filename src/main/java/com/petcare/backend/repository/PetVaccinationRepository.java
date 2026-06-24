@@ -1,11 +1,14 @@
 package com.petcare.backend.repository;
 
 import com.petcare.backend.model.PetVaccination;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PetVaccinationRepository extends JpaRepository<PetVaccination, Long> {
+    boolean existsByPetId(Long petId);
+
     List<PetVaccination> findByPetIdOrderByScheduledDateAsc(Long petId);
 
     List<PetVaccination> findByPetIdAndStatusOrderByScheduledDateAsc(
@@ -14,4 +17,22 @@ public interface PetVaccinationRepository extends JpaRepository<PetVaccination, 
     );
 
     Optional<PetVaccination> findByIdAndPetId(Long id, Long petId);
+
+    List<PetVaccination> findByPetIdAndStatusOrderBySeriesCodeAscDoseNumberAsc(
+            Long petId,
+            PetVaccination.VaccinationStatus status
+    );
+
+    List<PetVaccination> findByPetIdAndSeriesCodeAndDoseNumberGreaterThanOrderByDoseNumberAsc(
+            Long petId,
+            String seriesCode,
+            Integer doseNumber
+    );
+
+    boolean existsByPetIdAndSeriesCodeAndScheduledDateAndStatusNot(
+            Long petId,
+            String seriesCode,
+            LocalDate scheduledDate,
+            PetVaccination.VaccinationStatus excludedStatus
+    );
 }

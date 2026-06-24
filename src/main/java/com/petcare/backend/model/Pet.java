@@ -70,6 +70,10 @@ public class Pet {
     @Column(length = 20)
     private PetStatus status = PetStatus.active;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vaccine_plan_status", length = 30)
+    private VaccinePlanStatus vaccinePlanStatus = VaccinePlanStatus.NOT_CONFIGURED;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -94,5 +98,9 @@ public class Pet {
 
     public enum PetStatus {
         active, archived, deceased
+    }
+
+    public enum VaccinePlanStatus {
+        NOT_CONFIGURED, PROPOSED, ACTIVE, REVIEW_REQUIRED
     }
 }

@@ -15,8 +15,15 @@ public class VaccinationResponse {
     private String petName;
     private Long vaccineTemplateId;
     private String vaccineName;
+    private String seriesCode;
+    private String targetStage;
     private Integer doseNumber;
+    private Integer minimumAgeWeeks;
+    private Integer intervalFromPreviousDays;
+    private Integer boosterIntervalMonths;
     private String status;
+    private String scheduleSource;
+    private Boolean scheduleLocked;
     private LocalDate scheduledDate;
     private LocalDate actualDate;
     private String administeredBy;
@@ -24,6 +31,8 @@ public class VaccinationResponse {
     private BigDecimal cost;
     private String notes;
     private String medicalProofUrl;
+    private LocalDateTime confirmedAt;
+    private Long confirmedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -36,8 +45,16 @@ public class VaccinationResponse {
             response.setVaccineTemplateId(vaccination.getVaccineTemplate().getId());
         }
         response.setVaccineName(vaccination.getVaccineName());
+        response.setSeriesCode(vaccination.getSeriesCode());
+        response.setTargetStage(vaccination.getTargetStage() != null ? vaccination.getTargetStage().name() : null);
         response.setDoseNumber(vaccination.getDoseNumber());
+        response.setMinimumAgeWeeks(vaccination.getMinimumAgeWeeks());
+        response.setIntervalFromPreviousDays(vaccination.getIntervalFromPreviousDays());
+        response.setBoosterIntervalMonths(vaccination.getBoosterIntervalMonths());
         response.setStatus(vaccination.getStatus() != null ? vaccination.getStatus().name() : null);
+        response.setScheduleSource(vaccination.getScheduleSource() != null
+                ? vaccination.getScheduleSource().name() : null);
+        response.setScheduleLocked(vaccination.getScheduleLocked());
         response.setScheduledDate(vaccination.getScheduledDate());
         response.setActualDate(vaccination.getActualDate());
         response.setAdministeredBy(vaccination.getAdministeredBy());
@@ -45,6 +62,8 @@ public class VaccinationResponse {
         response.setCost(vaccination.getCost());
         response.setNotes(vaccination.getNotes());
         response.setMedicalProofUrl(vaccination.getMedicalProofUrl());
+        response.setConfirmedAt(vaccination.getConfirmedAt());
+        response.setConfirmedBy(vaccination.getConfirmedBy() != null ? vaccination.getConfirmedBy().getId() : null);
         response.setCreatedAt(vaccination.getCreatedAt());
         response.setUpdatedAt(vaccination.getUpdatedAt());
         return response;

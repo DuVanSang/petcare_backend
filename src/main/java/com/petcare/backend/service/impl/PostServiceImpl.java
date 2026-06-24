@@ -11,6 +11,7 @@ import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.CommentMedia;
+import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.Post;
 import com.petcare.backend.model.PostComment;
 import com.petcare.backend.model.PostMedia;
@@ -30,6 +31,8 @@ import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.FriendService;
+import com.petcare.backend.service.PetTagPermissionService;
+import com.petcare.backend.service.PetTimelineService;
 import com.petcare.backend.service.PostMapper;
 import com.petcare.backend.service.PostService;
 import com.petcare.backend.service.SocialPermissionService;
@@ -63,12 +66,15 @@ public class PostServiceImpl implements PostService {
     private final FriendService friendService;
     private final PostMapper postMapper;
     private final SocialPermissionService socialPermissionService;
+    private final PetTagPermissionService petTagPermissionService;
+    private final PetTimelineService petTimelineService;
 
     @Override
     @Transactional
     public PostResponse createPost(CreatePostRequest request, Long currentUserId) {
         User currentUser = getCurrentActiveUser(currentUserId);
         validateCreatePostRequest(request);
+        Pet taggedPet = petTagPermissionService.validateAndGetTaggablePet(currentUserId, request.getPetId());
 
         Post post = Post.builder()
                 .user(currentUser)
@@ -81,6 +87,9 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
         createPostMedia(savedPost, request.getMedia());
+        if (taggedPet != null) {
+            petTimelineService.createSocialPostEvent(taggedPet, savedPost);
+        }
         return buildPostResponse(savedPost, currentUserId);
     }
 
@@ -95,6 +104,7 @@ public class PostServiceImpl implements PostService {
     ) {
         User currentUser = getCurrentActiveUser(currentUserId);
         validateCreatePostWithFilesRequest(petId, caption, privacy, files);
+        Pet taggedPet = petTagPermissionService.validateAndGetTaggablePet(currentUserId, petId);
 
         List<UploadFileResponse> uploadedFiles = fileStorageService.storePostMediaFiles(files);
         // TODO: Clean up stored files if saving post/media metadata fails.
@@ -110,6 +120,9 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
         createPostMediaFromUploads(savedPost, uploadedFiles);
+        if (taggedPet != null) {
+            petTimelineService.createSocialPostEvent(taggedPet, savedPost);
+        }
         return buildPostResponse(savedPost, currentUserId);
     }
 
@@ -183,7 +196,9 @@ public class PostServiceImpl implements PostService {
     public PageResponse<PostResponse> getPetPosts(Long petId, Long currentUserId, int page, int size) {
         validatePositiveId(petId, "Pet id");
         socialPermissionService.checkUserActive(currentUserId);
-        // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+        if (!petRepository.existsById(petId)) {
+            throw new ResourceNotFoundException("Pet not found");
+        }
 
         Pageable pageable = buildPageable(page, size);
         Page<Post> posts = postRepository.findVisiblePetPosts(
@@ -216,8 +231,8 @@ public class PostServiceImpl implements PostService {
             post.setCommentsLocked(request.getCommentsLocked());
         }
         if (request.isPetIdSet()) {
-            validatePetIdIfPresent(request.getPetId());
-            // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+            petTagPermissionService.validateAndGetTaggablePet(currentUserId, request.getPetId());
+            // TODO: Business rule for removing or moving old social_post timeline events can be clarified later.
             post.setPetId(request.getPetId());
         }
 
@@ -273,7 +288,7 @@ public class PostServiceImpl implements PostService {
             throw new BadRequestException("Privacy is required");
         }
         parsePostPrivacy(request.getPrivacy());
-        validatePetIdIfPresent(request.getPetId());
+        validatePetIdShapeIfPresent(request.getPetId());
         validateMediaList(request.getMedia());
 
         if (isBlank(request.getCaption()) && (request.getMedia() == null || request.getMedia().isEmpty())) {
@@ -291,8 +306,7 @@ public class PostServiceImpl implements PostService {
             throw new BadRequestException("Privacy is required");
         }
         parsePostPrivacy(privacy);
-        validatePetIdIfPresent(petId);
-        // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+        validatePetIdShapeIfPresent(petId);
 
         if (files != null && files.size() > MAX_MEDIA_PER_POST) {
             throw new BadRequestException("A post can contain at most 10 media items");
@@ -311,7 +325,7 @@ public class PostServiceImpl implements PostService {
             parsePostPrivacy(request.getPrivacy());
         }
         if (request.isPetIdSet()) {
-            validatePetIdIfPresent(request.getPetId());
+            validatePetIdShapeIfPresent(request.getPetId());
         }
         validateMediaList(request.getMedia());
 
@@ -529,15 +543,12 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    private void validatePetIdIfPresent(Long petId) {
+    private void validatePetIdShapeIfPresent(Long petId) {
         if (petId == null) {
             return;
         }
         if (petId <= 0) {
             throw new BadRequestException("Pet id must be greater than 0");
-        }
-        if (!petRepository.existsById(petId)) {
-            throw new ResourceNotFoundException("Pet not found");
         }
     }
 

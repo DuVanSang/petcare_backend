@@ -4,6 +4,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.pet.request.CreateCoParentInvitationRequest;
 import com.petcare.backend.dto.pet.request.CreatePetRequest;
 import com.petcare.backend.dto.pet.request.UpdatePetRequest;
+import com.petcare.backend.dto.pet.request.UpdateCoParentRoleRequest;
 import com.petcare.backend.dto.pet.response.CoParentResponse;
 import com.petcare.backend.dto.pet.response.CoParentInvitationResponse;
 import com.petcare.backend.dto.pet.response.PetResponse;
@@ -215,6 +216,56 @@ public class PetServiceImpl implements PetService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public CoParentResponse updateCoParentRole(Long currentUserId, Long petId, Long coParentId,
+                                               UpdateCoParentRoleRequest request) {
+        Pet pet = getPetAndEnsureOwner(currentUserId, petId,
+                "Only pet owner can update co-parent role.");
+        PetCoParent coParent = coParentRepository.findByIdAndPetId(coParentId, petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Co-parent not found."));
+
+        PetCoParent.CoParentRole newRole;
+        try {
+            newRole = PetCoParent.CoParentRole.valueOf(request.getRole().trim().toLowerCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Invalid co-parent role. Allowed values: editor, viewer.");
+        }
+
+        if (coParent.getRole() == newRole) {
+            return CoParentResponse.from(coParent);
+        }
+
+        coParent.setRole(newRole);
+        PetCoParent saved = coParentRepository.save(coParent);
+        if (!saved.getUser().getId().equals(currentUserId)) {
+            notificationService.createNotification(saved.getUser().getId(), currentUserId,
+                    "Quyền đồng chăm sóc đã được cập nhật",
+                    pet.getOwner().getFullName() + " đã cập nhật quyền đồng chăm sóc của bạn với bé "
+                            + pet.getName() + " thành " + newRole.name() + ".",
+                    "co_parent_role_updated", pet.getId());
+        }
+        return CoParentResponse.from(saved);
+    }
+
+    @Override
+    @Transactional
+    public void removeCoParent(Long currentUserId, Long petId, Long coParentId) {
+        Pet pet = getPetAndEnsureOwner(currentUserId, petId,
+                "Only pet owner can remove co-parent.");
+        PetCoParent coParent = coParentRepository.findByIdAndPetId(coParentId, petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Co-parent not found."));
+        User removedUser = coParent.getUser();
+        coParentRepository.delete(coParent);
+        if (!removedUser.getId().equals(currentUserId)) {
+            notificationService.createNotification(removedUser.getId(), currentUserId,
+                    "Bạn đã bị gỡ khỏi đồng chăm sóc",
+                    pet.getOwner().getFullName() + " đã gỡ bạn khỏi danh sách đồng chăm sóc bé "
+                            + pet.getName() + ".",
+                    "co_parent_removed", pet.getId());
+        }
+    }
+
     @Override @Transactional
     public CoParentInvitationResponse createCoParentInvitation(
             Long currentUserId, Long petId, CreateCoParentInvitationRequest request) {
@@ -330,6 +381,19 @@ public class PetServiceImpl implements PetService {
         User user = getUser(userId);
         if (!"active".equalsIgnoreCase(user.getStatus())) throw new BadRequestException("Current user is not active");
         return user;
+    }
+
+    private Pet getPetAndEnsureOwner(Long currentUserId, Long petId, String forbiddenMessage) {
+        getActiveUser(currentUserId);
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pet not found."));
+        if (pet.getStatus() != Pet.PetStatus.active) {
+            throw new ConflictException("Pet is not active.");
+        }
+        if (!pet.getOwner().getId().equals(currentUserId)) {
+            throw new ForbiddenException(forbiddenMessage);
+        }
+        return pet;
     }
 
     private PetResponse toPetResponse(Pet pet, String role) {

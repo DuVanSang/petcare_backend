@@ -4,6 +4,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.pet.request.CreateCoParentInvitationRequest;
 import com.petcare.backend.dto.pet.request.CreatePetRequest;
 import com.petcare.backend.dto.pet.request.UpdatePetRequest;
+import com.petcare.backend.dto.pet.request.UpdateCoParentRoleRequest;
 import com.petcare.backend.dto.pet.response.CoParentResponse;
 import com.petcare.backend.dto.pet.response.CoParentInvitationResponse;
 import com.petcare.backend.dto.pet.response.PetResponse;
@@ -28,6 +29,9 @@ public interface PetService {
     void deletePet(UserPrincipal principal, Long petId);
 
     List<CoParentResponse> getCoParents(UserPrincipal principal, Long petId);
+    CoParentResponse updateCoParentRole(Long currentUserId, Long petId, Long coParentId,
+                                        UpdateCoParentRoleRequest request);
+    void removeCoParent(Long currentUserId, Long petId, Long coParentId);
 
     CoParentInvitationResponse createCoParentInvitation(Long currentUserId, Long petId,
                                                         CreateCoParentInvitationRequest request);

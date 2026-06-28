@@ -7,6 +7,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.pet.request.CreateCoParentInvitationRequest;
 import com.petcare.backend.dto.pet.request.CreatePetRequest;
 import com.petcare.backend.dto.pet.request.UpdatePetRequest;
+import com.petcare.backend.dto.pet.request.UpdateCoParentRoleRequest;
 import com.petcare.backend.dto.pet.response.CoParentResponse;
 import com.petcare.backend.dto.pet.response.CoParentInvitationResponse;
 import com.petcare.backend.dto.pet.response.PetResponse;
@@ -136,6 +137,25 @@ public class PetController {
             @Valid @RequestBody CreateCoParentInvitationRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Invitation created successfully",
                 petService.createCoParentInvitation(principal.getId(), petId, request)));
+    }
+
+    @PatchMapping("/{petId}/co-parents/{coParentId}/role")
+    public ResponseEntity<ApiResponse<CoParentResponse>> updateCoParentRole(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long coParentId,
+            @Valid @RequestBody UpdateCoParentRoleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Co-parent role updated successfully",
+                petService.updateCoParentRole(principal.getId(), petId, coParentId, request)));
+    }
+
+    @DeleteMapping("/{petId}/co-parents/{coParentId}")
+    public ResponseEntity<ApiResponse<Void>> removeCoParent(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long coParentId) {
+        petService.removeCoParent(principal.getId(), petId, coParentId);
+        return ResponseEntity.ok(ApiResponse.success("Co-parent removed successfully", null));
     }
 
     @GetMapping("/co-parent-invitations/incoming")

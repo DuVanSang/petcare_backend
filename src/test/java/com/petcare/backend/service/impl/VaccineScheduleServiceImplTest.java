@@ -1,6 +1,7 @@
 package com.petcare.backend.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -9,6 +10,7 @@ import static org.mockito.Mockito.lenient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petcare.backend.dto.pet.request.VaccinationHistoryRequest;
+import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.Notification;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
@@ -95,6 +97,22 @@ class VaccineScheduleServiceImplTest {
     }
 
     @Test
+    void setupFailsClearlyWhenSpeciesHasNoVaccineTemplates() {
+        pet.getSpecies().setId(99L);
+        when(templateRepository
+                .findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(99L))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.generateProposedSchedule(pet, List.of(
+                history("UNKNOWN_SERIES", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null)
+        )))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Chưa có phác đồ vaccine được cấu hình cho loài thú cưng này");
+
+        verify(vaccinationRepository, never()).save(any(PetVaccination.class));
+    }
+
+    @Test
     void puppyAtTwentyWeeksStillReceivesIndependentRabiesDose() {
         pet.setDateOfBirth(LocalDate.now().minusWeeks(20));
         VaccineTemplate rabies = template(
@@ -143,6 +161,105 @@ class VaccineScheduleServiceImplTest {
                 .isEqualTo(generated.get(1).getScheduledDate().plusDays(28));
         assertThat(generated.get(3).getScheduledDate())
                 .isEqualTo(generated.get(2).getScheduledDate().plusDays(70));
+    }
+
+    @Test
+    void kittenAtEightWeeksCreatesFvrcpAndIndependentRabiesSchedule() {
+        pet.getSpecies().setId(2L);
+        pet.setName("Miu");
+        pet.setDateOfBirth(LocalDate.now().minusWeeks(8));
+        List<VaccineTemplate> templates = List.of(
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.PUPPY, 1, 8, 0, null),
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.PUPPY, 2, 12, 28, null),
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.PUPPY, 3, 16, 28, null),
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.PUPPY, 4, 26, 70, null),
+                template("FELINE_RABIES", VaccineTemplate.TargetStage.PUPPY, 1, 12, 0, null)
+        );
+        when(templateRepository
+                .findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(2L))
+                .thenReturn(templates);
+
+        service.generateProposedSchedule(pet, List.of(
+                history("FELINE_CORE_FVRCP", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null),
+                history("FELINE_RABIES", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null)
+        ));
+
+        ArgumentCaptor<PetVaccination> captor = ArgumentCaptor.forClass(PetVaccination.class);
+        verify(vaccinationRepository, org.mockito.Mockito.times(5)).save(captor.capture());
+        List<PetVaccination> generated = captor.getAllValues();
+
+        assertThat(generated).filteredOn(item -> "FELINE_CORE_FVRCP".equals(item.getSeriesCode()))
+                .extracting(PetVaccination::getDoseNumber)
+                .containsExactly(1, 2, 3, 4);
+        assertThat(generated).filteredOn(item -> "FELINE_RABIES".equals(item.getSeriesCode()))
+                .singleElement()
+                .satisfies(item -> assertThat(item.getScheduledDate())
+                        .isEqualTo(pet.getDateOfBirth().plusWeeks(12)));
+    }
+
+    @Test
+    void unvaccinatedAdultCatCreatesTwoDoseFvrcpCatchUpAndRabies() {
+        pet.getSpecies().setId(2L);
+        pet.setDateOfBirth(LocalDate.now().minusYears(2));
+        List<VaccineTemplate> templates = List.of(
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.CATCH_UP, 1, 26, 0, null),
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.CATCH_UP, 2, 26, 28, null),
+                template("FELINE_RABIES", VaccineTemplate.TargetStage.CATCH_UP, 1, 26, 0, null)
+        );
+        when(templateRepository
+                .findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(2L))
+                .thenReturn(templates);
+
+        service.generateProposedSchedule(pet, List.of(
+                history("FELINE_CORE_FVRCP", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null),
+                history("FELINE_RABIES", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null)
+        ));
+
+        ArgumentCaptor<PetVaccination> captor = ArgumentCaptor.forClass(PetVaccination.class);
+        verify(vaccinationRepository, org.mockito.Mockito.times(3)).save(captor.capture());
+        List<PetVaccination> generated = captor.getAllValues();
+        List<PetVaccination> fvrcp = generated.stream()
+                .filter(item -> "FELINE_CORE_FVRCP".equals(item.getSeriesCode()))
+                .toList();
+
+        assertThat(fvrcp).hasSize(2);
+        assertThat(fvrcp.get(0).getScheduledDate()).isEqualTo(LocalDate.now());
+        assertThat(fvrcp.get(1).getScheduledDate()).isEqualTo(LocalDate.now().plusDays(28));
+        assertThat(generated).filteredOn(item -> "FELINE_RABIES".equals(item.getSeriesCode()))
+                .singleElement()
+                .satisfies(item -> assertThat(item.getScheduledDate()).isEqualTo(LocalDate.now()));
+    }
+
+    @Test
+    void completeAdultCatHistoryCreatesFvrcpAndRabiesBoostersIndependently() {
+        pet.getSpecies().setId(2L);
+        pet.setDateOfBirth(LocalDate.now().minusYears(3));
+        List<VaccineTemplate> templates = List.of(
+                template("FELINE_CORE_FVRCP", VaccineTemplate.TargetStage.ADULT, 1, 26, 0, 36),
+                template("FELINE_RABIES", VaccineTemplate.TargetStage.ADULT, 1, 26, 0, 12)
+        );
+        when(templateRepository
+                .findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(2L))
+                .thenReturn(templates);
+
+        service.generateProposedSchedule(pet, List.of(
+                history("FELINE_CORE_FVRCP", VaccinationHistoryRequest.HistoryStatus.COMPLETE,
+                        3, LocalDate.now().minusMonths(12)),
+                history("FELINE_RABIES", VaccinationHistoryRequest.HistoryStatus.COMPLETE,
+                        1, LocalDate.now().minusMonths(6))
+        ));
+
+        ArgumentCaptor<PetVaccination> captor = ArgumentCaptor.forClass(PetVaccination.class);
+        verify(vaccinationRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+
+        assertThat(captor.getAllValues())
+                .filteredOn(item -> "FELINE_CORE_FVRCP".equals(item.getSeriesCode()))
+                .singleElement()
+                .satisfies(item -> assertThat(item.getScheduledDate()).isEqualTo(LocalDate.now().plusMonths(24)));
+        assertThat(captor.getAllValues())
+                .filteredOn(item -> "FELINE_RABIES".equals(item.getSeriesCode()))
+                .singleElement()
+                .satisfies(item -> assertThat(item.getScheduledDate()).isEqualTo(LocalDate.now().plusMonths(6)));
     }
 
     @Test

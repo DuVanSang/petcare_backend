@@ -51,9 +51,9 @@ public class VaccineScheduleServiceImpl implements VaccineScheduleService {
                         pet.getSpecies().getId()
                 );
         if (allTemplates.isEmpty()) {
-            pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.NOT_CONFIGURED);
-            petRepository.save(pet);
-            return;
+            throw new BadRequestException(
+                    "Chưa có phác đồ vaccine được cấu hình cho loài thú cưng này"
+            );
         }
 
         Map<String, VaccinationHistoryRequest> historyBySeries = normalizeHistories(histories);
@@ -99,7 +99,9 @@ public class VaccineScheduleServiceImpl implements VaccineScheduleService {
         }
 
         if (createdCount == 0) {
-            pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.NOT_CONFIGURED);
+            throw new BadRequestException(
+                    "Không thể sinh lịch tiêm từ lịch sử vaccine đã cung cấp"
+            );
         } else if (reviewRequired) {
             pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.REVIEW_REQUIRED);
             createConsultationNotification(pet);

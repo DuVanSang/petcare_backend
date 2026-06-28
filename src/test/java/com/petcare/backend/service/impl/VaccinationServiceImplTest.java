@@ -8,8 +8,10 @@ import static org.mockito.Mockito.when;
 
 import com.petcare.backend.dto.pet.request.VaccinationHistoryRequest;
 import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
+import com.petcare.backend.dto.vaccination.request.RescheduleVaccinationRequest;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.Pet;
+import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.User;
 import com.petcare.backend.repository.PetCoParentRepository;
 import com.petcare.backend.repository.PetRepository;
@@ -18,8 +20,10 @@ import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccineScheduleService;
+import com.petcare.backend.service.ReminderSynchronizationService;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +45,8 @@ class VaccinationServiceImplTest {
     @Mock
     private VaccineScheduleService vaccineScheduleService;
     @Mock
+    private ReminderSynchronizationService reminderSynchronizationService;
+    @Mock
     private UserPrincipal principal;
 
     private VaccinationServiceImpl service;
@@ -54,7 +60,8 @@ class VaccinationServiceImplTest {
                 vaccinationRepository,
                 timelineEventRepository,
                 userRepository,
-                vaccineScheduleService
+                vaccineScheduleService,
+                reminderSynchronizationService
         );
 
         User owner = new User();
@@ -89,6 +96,26 @@ class VaccinationServiceImplTest {
                 .hasMessage("Kế hoạch tiêm của thú cưng đã được thiết lập");
 
         verify(vaccineScheduleService, never()).generateProposedSchedule(pet, request.getHistories());
+    }
+
+    @Test
+    void rescheduleSynchronizesVaccinationReminders() {
+        PetVaccination vaccination = new PetVaccination();
+        vaccination.setId(30L);
+        vaccination.setPet(pet);
+        vaccination.setStatus(PetVaccination.VaccinationStatus.scheduled);
+        vaccination.setScheduledDate(LocalDate.now().plusDays(5));
+        when(vaccinationRepository.findByIdAndPetId(30L, 20L)).thenReturn(Optional.of(vaccination));
+        when(vaccinationRepository.save(vaccination)).thenReturn(vaccination);
+        RescheduleVaccinationRequest request = new RescheduleVaccinationRequest();
+        request.setScheduledDate(LocalDate.now().plusDays(10));
+
+        service.rescheduleVaccination(principal, 20L, 30L, request);
+
+        verify(reminderSynchronizationService).rescheduleVaccinationReminders(
+                vaccination,
+                LocalDate.now().plusDays(5)
+        );
     }
 
     private SetupVaccinationPlanRequest setupRequest() {

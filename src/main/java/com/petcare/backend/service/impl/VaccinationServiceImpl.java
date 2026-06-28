@@ -20,6 +20,7 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccinationService;
 import com.petcare.backend.service.VaccineScheduleService;
+import com.petcare.backend.service.ReminderSynchronizationService;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class VaccinationServiceImpl implements VaccinationService {
     private final PetTimelineEventRepository timelineEventRepository;
     private final UserRepository userRepository;
     private final VaccineScheduleService vaccineScheduleService;
+    private final ReminderSynchronizationService reminderSynchronizationService;
 
     @Override
     @Transactional
@@ -121,6 +123,7 @@ public class VaccinationServiceImpl implements VaccinationService {
         vaccination.setMedicalProofUrl(trimToNull(request.getMedicalProofUrl()));
 
         PetVaccination saved = vaccinationRepository.save(vaccination);
+        reminderSynchronizationService.cancelVaccinationReminders(saved);
         createVaccinatedTimelineEvent(saved);
         vaccineScheduleService.recalculateAfterCompletion(saved);
         return VaccinationResponse.from(saved);
@@ -146,7 +149,9 @@ public class VaccinationServiceImpl implements VaccinationService {
         }
         vaccination.setStatus(PetVaccination.VaccinationStatus.skipped);
         vaccination.setNotes(trimToNull(request.getNotes()));
-        return VaccinationResponse.from(vaccinationRepository.save(vaccination));
+        PetVaccination saved = vaccinationRepository.save(vaccination);
+        reminderSynchronizationService.cancelVaccinationReminders(saved);
+        return VaccinationResponse.from(saved);
     }
 
     @Override
@@ -164,6 +169,7 @@ public class VaccinationServiceImpl implements VaccinationService {
         if (vaccination.getStatus() == PetVaccination.VaccinationStatus.cancelled) {
             throw new BadRequestException("Không thể dời lịch mũi tiêm đã bị hủy");
         }
+        LocalDate previousDate = vaccination.getScheduledDate();
         boolean isProposed = vaccination.getStatus() == PetVaccination.VaccinationStatus.proposed;
         vaccination.setScheduledDate(request.getScheduledDate());
         vaccination.setStatus(isProposed
@@ -172,7 +178,9 @@ public class VaccinationServiceImpl implements VaccinationService {
         vaccination.setScheduleLocked(true);
         vaccination.setScheduleSource(PetVaccination.ScheduleSource.MANUAL);
         vaccination.setNotes(trimToNull(request.getNotes()));
-        return VaccinationResponse.from(vaccinationRepository.save(vaccination));
+        PetVaccination saved = vaccinationRepository.save(vaccination);
+        reminderSynchronizationService.rescheduleVaccinationReminders(saved, previousDate);
+        return VaccinationResponse.from(saved);
     }
 
     private Pet ensureCanView(UserPrincipal principal, Long petId) {

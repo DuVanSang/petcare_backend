@@ -2,8 +2,11 @@ package com.petcare.backend.repository;
 
 import com.petcare.backend.model.PetVaccination;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PetVaccinationRepository extends JpaRepository<PetVaccination, Long> {
@@ -34,5 +37,17 @@ public interface PetVaccinationRepository extends JpaRepository<PetVaccination, 
             String seriesCode,
             LocalDate scheduledDate,
             PetVaccination.VaccinationStatus excludedStatus
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<PetVaccination> findByStatusInAndScheduledDateBetween(
+            Collection<PetVaccination.VaccinationStatus> statuses,
+            LocalDate from,
+            LocalDate to
+    );
+
+    List<PetVaccination> findByStatusAndScheduledDateBefore(
+            PetVaccination.VaccinationStatus status,
+            LocalDate date
     );
 }

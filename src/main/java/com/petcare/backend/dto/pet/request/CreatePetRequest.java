@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -16,6 +17,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreatePetRequest {
+    private static final LocalDate MIN_PET_BIRTH_DATE = LocalDate.of(1900, 1, 1);
     @NotBlank(message = "Tên thú cưng không được để trống")
     @Size(max = 100, message = "Tên thú cưng không được quá 100 ký tự")
     private String name;
@@ -26,7 +28,6 @@ public class CreatePetRequest {
     @NotNull(message = "Vui lòng chọn loài thú cưng")
     private Long speciesId;
 
-    @NotNull(message = "Vui lòng chọn giống thú cưng")
     private Long breedId;
 
     @Size(max = 100, message = "Tên giống tự nhập không được quá 100 ký tự")
@@ -50,4 +51,10 @@ public class CreatePetRequest {
     private List<String> medicalConditions;
 
     private String notes;
+
+    @AssertTrue(message = "Ngày sinh thú cưng không hợp lệ")
+    public boolean isValidDateOfBirth() {
+        return dateOfBirth == null
+                || (!dateOfBirth.isBefore(MIN_PET_BIRTH_DATE) && !dateOfBirth.isAfter(LocalDate.now()));
+    }
 }

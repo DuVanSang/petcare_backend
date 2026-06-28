@@ -9,6 +9,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -41,6 +42,8 @@ public class PetResponse {
     private String status;
     private String vaccinePlanStatus;
     private String notes;
+    private List<String> allergies;
+    private List<String> medicalConditions;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

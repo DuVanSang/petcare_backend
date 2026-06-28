@@ -12,4 +12,8 @@ public interface FileStorageService {
     UploadFileResponse storeCommentMediaFile(MultipartFile file);
 
     List<UploadFileResponse> storeCommentMediaFiles(List<MultipartFile> files);
+
+    UploadFileResponse storePetAvatar(MultipartFile file, Long userId);
+
+    void deleteByUrl(String fileUrl);
 }

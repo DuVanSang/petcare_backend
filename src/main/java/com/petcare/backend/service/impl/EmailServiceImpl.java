@@ -51,29 +51,6 @@ public class EmailServiceImpl implements EmailService {
         log.info("Password reset OTP for {}: {}", toEmail, otpCode);
     }
 
-    @Override
-    public void sendCoParentInvitation(String toEmail, String inviterName, String petName, String inviteCode) {
-        String subject = "PetCare - Lời mời đồng nuôi";
-        String body = """
-                Xin chào,
-
-                %s đã mời bạn trở thành đồng nuôi của thú cưng "%s" trên PetCare.
-
-                Mã mời của bạn là: %s
-
-                Mã mời có hiệu lực trong 24 giờ. Vui lòng đăng nhập đúng tài khoản email này để chấp nhận lời mời.
-
-                PetCare
-                """.formatted(inviterName, petName, inviteCode);
-
-        if (isSmtpProvider()) {
-            sendWithSmtp(toEmail, subject, body);
-            return;
-        }
-
-        log.info("Co-parent invitation for {} to join pet '{}'. Invite code: {}", toEmail, petName, inviteCode);
-    }
-
     private boolean isSmtpProvider() {
         return "smtp".equalsIgnoreCase(mailProvider);
     }

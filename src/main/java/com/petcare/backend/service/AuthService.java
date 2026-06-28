@@ -2,6 +2,7 @@ package com.petcare.backend.service;
 
 import com.petcare.backend.dto.auth.response.AuthResponse;
 import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
+import com.petcare.backend.dto.auth.request.GoogleLoginRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
 import com.petcare.backend.dto.auth.request.RefreshTokenRequest;
@@ -19,6 +20,8 @@ public interface AuthService {
     void resendVerificationCode(ResendVerificationRequest request);
 
     AuthResponse login(LoginRequest request);
+
+    AuthResponse loginWithGoogle(GoogleLoginRequest request);
 
     AuthResponse refreshToken(RefreshTokenRequest request);
 

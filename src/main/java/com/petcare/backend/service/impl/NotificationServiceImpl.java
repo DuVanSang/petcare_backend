@@ -6,6 +6,7 @@ import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.Notification;
 import com.petcare.backend.repository.NotificationRepository;
+import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.NotificationService;
 import com.petcare.backend.service.SocialPermissionService;
 import java.time.LocalDateTime;
@@ -26,6 +27,24 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SocialPermissionService socialPermissionService;
+    private final UserRepository userRepository;
+
+    @Override
+    @Transactional
+    public void createNotification(Long receiverId, Long senderId, String title, String content,
+                                   String type, Long referenceId) {
+        var receiver = userRepository.findById(receiverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người nhận thông báo"));
+        var sender = senderId == null ? null : userRepository.findById(senderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người gửi thông báo"));
+        Notification notification = new Notification();
+        notification.setReceiver(receiver); notification.setSender(sender);
+        notification.setTitle(title); notification.setBody(content); notification.setType(type);
+        notification.setData(referenceId == null ? null : "{\"referenceId\":" + referenceId + "}");
+        notification.setStatus("sent"); notification.setIsRead(false);
+        notification.setSentAt(LocalDateTime.now());
+        notificationRepository.save(notification);
+    }
 
     @Override
     @Transactional(readOnly = true)

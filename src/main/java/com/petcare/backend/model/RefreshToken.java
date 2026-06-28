@@ -24,7 +24,7 @@ public class RefreshToken {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
     private User user;
 
     @Column(nullable = false, unique = true, length = 128)

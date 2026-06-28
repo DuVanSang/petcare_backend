@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -30,6 +31,10 @@ public class CoParentInvitation {
     @Column(name = "invitee_email", length = 255)
     private String inviteeEmail;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invitee_user_id")
+    private User inviteeUser;
+
     @Column(name = "invite_code", nullable = false, unique = true, length = 20)
     private String inviteCode;
 
@@ -44,13 +49,21 @@ public class CoParentInvitation {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    @Column(name = "accepted_at") private LocalDateTime acceptedAt;
+    @Column(name = "declined_at") private LocalDateTime declinedAt;
+    @Column(name = "revoked_at") private LocalDateTime revokedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     // ========== Enum ==========
 
     public enum InvitationStatus {
-        pending, accepted, expired, revoked
+        pending, accepted, expired, revoked, declined
     }
 }

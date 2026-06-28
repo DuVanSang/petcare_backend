@@ -1,6 +1,7 @@
 package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.pet.request.CreateBreedRequest;
 import com.petcare.backend.dto.pet.request.CreateSpeciesRequest;
 import com.petcare.backend.dto.pet.response.BreedResponse;
@@ -19,8 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/categories")
@@ -32,10 +32,12 @@ public class CategoryController {
 
     @GetMapping("/species")
     @Operation(summary = "Lấy danh sách loài thú cưng (dropdown)")
-    public ResponseEntity<ApiResponse<List<SpeciesResponse>>> getAllSpecies() {
+    public ResponseEntity<ApiResponse<PageResponse<SpeciesResponse>>> getAllSpecies(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách loài thành công",
-                categoryService.getAllSpecies()
+                categoryService.getAllSpecies(page, size)
         ));
     }
 
@@ -50,10 +52,13 @@ public class CategoryController {
 
     @GetMapping("/species/{speciesId}/breeds")
     @Operation(summary = "Lấy danh sách giống theo loài (dropdown)")
-    public ResponseEntity<ApiResponse<List<BreedResponse>>> getBreeds(@PathVariable Long speciesId) {
+    public ResponseEntity<ApiResponse<PageResponse<BreedResponse>>> getBreeds(
+            @PathVariable Long speciesId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách giống thành công",
-                categoryService.getBreedsBySpecies(speciesId)
+                categoryService.getBreedsBySpecies(speciesId, page, size)
         ));
     }
 

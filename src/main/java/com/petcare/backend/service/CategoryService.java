@@ -4,14 +4,13 @@ import com.petcare.backend.dto.pet.request.CreateBreedRequest;
 import com.petcare.backend.dto.pet.request.CreateSpeciesRequest;
 import com.petcare.backend.dto.pet.response.BreedResponse;
 import com.petcare.backend.dto.pet.response.SpeciesResponse;
-
-import java.util.List;
+import com.petcare.backend.dto.common.PageResponse;
 
 public interface CategoryService {
 
-    List<SpeciesResponse> getAllSpecies();
+    PageResponse<SpeciesResponse> getAllSpecies(int page, int size);
 
-    List<BreedResponse> getBreedsBySpecies(Long speciesId);
+    PageResponse<BreedResponse> getBreedsBySpecies(Long speciesId, int page, int size);
 
     SpeciesResponse createSpecies(CreateSpeciesRequest request);
 

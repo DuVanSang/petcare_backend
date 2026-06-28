@@ -155,17 +155,24 @@ CREATE TABLE `co_parent_invitations` (
   `pet_id` bigint unsigned NOT NULL,
   `inviter_id` bigint unsigned NOT NULL,
   `invitee_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invitee_user_id` bigint unsigned DEFAULT NULL,
   `invite_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `role` enum('editor','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',
-  `status` enum('pending','accepted','expired','revoked') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `status` enum('pending','accepted','expired','revoked','declined') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `expires_at` timestamp NOT NULL,
+  `accepted_at` timestamp NULL DEFAULT NULL,
+  `declined_at` timestamp NULL DEFAULT NULL,
+  `revoked_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `invite_code` (`invite_code`),
   KEY `fk_invitations_pet` (`pet_id`),
   KEY `fk_invitations_inviter` (`inviter_id`),
+  KEY `idx_coparent_inv_invitee_status` (`invitee_user_id`,`status`),
   CONSTRAINT `fk_invitations_inviter` FOREIGN KEY (`inviter_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_invitations_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_invitations_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_coparent_inv_invitee_user` FOREIGN KEY (`invitee_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -257,8 +264,10 @@ CREATE TABLE `email_verification_tokens` (
   `expires_at` datetime(6) NOT NULL,
   `otp_code` varchar(10) NOT NULL,
   `used_at` datetime(6) DEFAULT NULL,
-  `user_id` bigint NOT NULL,
-  PRIMARY KEY (`id`)
+  `user_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKi1c4mmamlb8keqt74k4lrtwhc` (`user_id`),
+  CONSTRAINT `FKi1c4mmamlb8keqt74k4lrtwhc` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -371,6 +380,7 @@ CREATE TABLE `notifications` (
   `body` text NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `data` json DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
   `read_at` datetime(6) DEFAULT NULL,
   `scheduled_at` datetime(6) DEFAULT NULL,
   `sent_at` datetime(6) DEFAULT NULL,
@@ -378,10 +388,13 @@ CREATE TABLE `notifications` (
   `title` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
   `updated_at` datetime(6) NOT NULL,
-  `user_id` bigint unsigned NOT NULL,
+  `receiver_id` bigint unsigned NOT NULL,
+  `sender_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `FK9y21adhxn0ayjhfocscqox7bh` (`user_id`),
-  CONSTRAINT `FK9y21adhxn0ayjhfocscqox7bh` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `idx_notifications_receiver_created` (`receiver_id`,`created_at`),
+  KEY `idx_notifications_sender` (`sender_id`),
+  CONSTRAINT `fk_notifications_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_notifications_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -726,9 +739,11 @@ CREATE TABLE `refresh_tokens` (
   `expires_at` datetime(6) NOT NULL,
   `revoked_at` datetime(6) DEFAULT NULL,
   `token` varchar(128) NOT NULL,
-  `user_id` bigint NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UKghpmfn23vmxfu3spu3lfg4r2d` (`token`)
+  UNIQUE KEY `UKghpmfn23vmxfu3spu3lfg4r2d` (`token`),
+  KEY `FK1lih5y2npsf8u5o3vhdb9y0os` (`user_id`),
+  CONSTRAINT `FK1lih5y2npsf8u5o3vhdb9y0os` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

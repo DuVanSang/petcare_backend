@@ -6,8 +6,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AcceptInvitationRequest {
-
-    @NotBlank(message = "Mã mời không được để trống")
-    private String inviteCode;
+public class UpdateCoParentRoleRequest {
+    @NotBlank(message = "Role is required")
+    private String role;
 }

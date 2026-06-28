@@ -1,13 +1,13 @@
 package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.notification.response.NotificationResponse;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,12 +28,23 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "Lấy danh sách thông báo")
-    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getMyNotifications(
+    public ResponseEntity<ApiResponse<PageResponse<NotificationResponse>>> getMyNotifications(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "false") boolean unread) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách thông báo thành công",
-                notificationService.getMyNotifications(principal, unread)
+                notificationService.getMyNotifications(principal.getId(), page, size)
+        ));
+    }
+
+    @GetMapping("/unread-count")
+    @Operation(summary = "Đếm thông báo chưa đọc")
+    public ResponseEntity<ApiResponse<Long>> countUnread(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy số lượng thông báo chưa đọc thành công",
+                notificationService.countUnread(principal.getId())
         ));
     }
 
@@ -41,18 +52,18 @@ public class NotificationController {
     @Operation(summary = "Đánh dấu thông báo đã đọc")
     public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long notificationId) {
+            @PathVariable Long notificationId
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
-                "Đánh dấu thông báo đã đọc",
-                notificationService.markAsRead(principal, notificationId)
+                "Đánh dấu thông báo đã đọc thành công",
+                notificationService.markAsRead(principal.getId(), notificationId)
         ));
     }
 
     @PatchMapping("/read-all")
     @Operation(summary = "Đánh dấu tất cả thông báo đã đọc")
-    public ResponseEntity<ApiResponse<Void>> markAllAsRead(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        notificationService.markAllAsRead(principal);
-        return ResponseEntity.ok(ApiResponse.success("Đã đọc tất cả thông báo", null));
+    public ResponseEntity<ApiResponse<Void>> markAllAsRead(@AuthenticationPrincipal UserPrincipal principal) {
+        notificationService.markAllAsRead(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Đánh dấu tất cả thông báo đã đọc thành công", null));
     }
 }

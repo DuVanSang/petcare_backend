@@ -15,4 +15,6 @@ public interface PetCoParentRepository extends JpaRepository<PetCoParent, Long> 
     Optional<PetCoParent> findByPetIdAndUserId(Long petId, Long userId);
 
     boolean existsByPetIdAndUserId(Long petId, Long userId);
+
+    boolean existsByPetIdAndUserIdAndRole(Long petId, Long userId, PetCoParent.CoParentRole role);
 }

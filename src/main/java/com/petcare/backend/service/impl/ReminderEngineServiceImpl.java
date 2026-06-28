@@ -210,7 +210,7 @@ public class ReminderEngineServiceImpl implements ReminderEngineService {
             Map<String, ?> data) {
         LocalDateTime now = LocalDateTime.now();
         Notification notification = new Notification();
-        notification.setUser(user);
+        notification.setReceiver(user);
         notification.setTitle(title);
         notification.setBody(body);
         notification.setType(type);

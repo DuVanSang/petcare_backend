@@ -26,8 +26,12 @@ public class Notification {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
-    private User user;
+    @JoinColumn(name = "receiver_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
+    private User receiver;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id", columnDefinition = "BIGINT UNSIGNED")
+    private User sender;
 
     @Column(nullable = false)
     private String title;
@@ -43,6 +47,9 @@ public class Notification {
 
     @Column(nullable = false)
     private String status = "pending";
+
+    @Column(name = "is_read", nullable = false)
+    private Boolean isRead = false;
 
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
@@ -64,6 +71,12 @@ public class Notification {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (isRead == null) {
+            isRead = false;
+        }
+        if (sentAt == null && "sent".equalsIgnoreCase(status)) {
+            sentAt = now;
+        }
     }
 
     @PreUpdate

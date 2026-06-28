@@ -381,7 +381,7 @@ public class VaccineScheduleServiceImpl implements VaccineScheduleService {
 
     private void createConsultationNotification(Pet pet) {
         Notification notification = new Notification();
-        notification.setUser(pet.getOwner());
+        notification.setReceiver(pet.getOwner());
         notification.setTitle("Cần xác nhận phác đồ vaccine");
         notification.setBody("Lịch sử tiêm của bé " + pet.getName()
                 + " chưa đầy đủ. Vui lòng tham khảo bác sĩ thú y trước khi kích hoạt lịch đề xuất.");

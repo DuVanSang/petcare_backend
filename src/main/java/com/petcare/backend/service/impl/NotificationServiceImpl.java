@@ -1,50 +1,117 @@
 package com.petcare.backend.service.impl;
 
+import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.notification.response.NotificationResponse;
 import com.petcare.backend.exception.BadRequestException;
+import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.Notification;
 import com.petcare.backend.repository.NotificationRepository;
-import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.NotificationService;
+import com.petcare.backend.service.SocialPermissionService;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
+    private static final int MAX_PAGE_SIZE = 50;
+    private static final Pattern REFERENCE_ID_PATTERN = Pattern.compile("\"referenceId\"\\s*:\\s*(\\d+)");
+
     private final NotificationRepository notificationRepository;
+    private final SocialPermissionService socialPermissionService;
 
     @Override
     @Transactional(readOnly = true)
-    public List<NotificationResponse> getMyNotifications(UserPrincipal principal, boolean unread) {
-        List<Notification> notifications = unread
-                ? notificationRepository.findByUserIdAndReadAtIsNullOrderByCreatedAtDesc(principal.getId())
-                : notificationRepository.findByUserIdOrderByCreatedAtDesc(principal.getId());
-        return notifications.stream().map(NotificationResponse::from).toList();
+    public PageResponse<NotificationResponse> getMyNotifications(Long currentUserId, int page, int size) {
+        socialPermissionService.checkUserActive(currentUserId);
+        Pageable pageable = buildPageable(page, size);
+        Page<NotificationResponse> notifications = notificationRepository
+                .findByReceiver_IdOrderByCreatedAtDesc(currentUserId, pageable)
+                .map(this::toResponse);
+        return PageResponse.from(notifications);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUnread(Long currentUserId) {
+        socialPermissionService.checkUserActive(currentUserId);
+        return notificationRepository.countByReceiver_IdAndIsReadFalse(currentUserId);
     }
 
     @Override
     @Transactional
-    public NotificationResponse markAsRead(UserPrincipal principal, Long notificationId) {
-        Notification notification = notificationRepository.findByIdAndUserId(notificationId, principal.getId())
-                .orElseThrow(() -> new BadRequestException("Thông báo không tồn tại"));
-        if (notification.getReadAt() == null) {
-            notification.setReadAt(LocalDateTime.now());
-            notificationRepository.save(notification);
+    public NotificationResponse markAsRead(Long currentUserId, Long notificationId) {
+        socialPermissionService.checkUserActive(currentUserId);
+        if (notificationId == null || notificationId <= 0) {
+            throw new BadRequestException("Id thông báo phải lớn hơn 0");
         }
-        return NotificationResponse.from(notification);
+
+        Notification notification = notificationRepository.findByIdAndReceiver_Id(notificationId, currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+        if (!Boolean.TRUE.equals(notification.getIsRead())) {
+            notification.setIsRead(true);
+            notification.setReadAt(LocalDateTime.now());
+        }
+        return toResponse(notificationRepository.save(notification));
     }
 
     @Override
     @Transactional
-    public void markAllAsRead(UserPrincipal principal) {
+    public void markAllAsRead(Long currentUserId) {
+        socialPermissionService.checkUserActive(currentUserId);
         LocalDateTime now = LocalDateTime.now();
-        notificationRepository.findByUserIdAndReadAtIsNull(principal.getId()).forEach(notification -> {
-            notification.setReadAt(now);
-            notificationRepository.save(notification);
-        });
+        notificationRepository.findByReceiver_IdOrderByCreatedAtDesc(currentUserId).stream()
+                .filter(notification -> !Boolean.TRUE.equals(notification.getIsRead()))
+                .forEach(notification -> {
+                    notification.setIsRead(true);
+                    notification.setReadAt(now);
+                });
+    }
+
+    private Pageable buildPageable(int page, int size) {
+        if (page < 0) {
+            throw new BadRequestException("Số trang không được âm");
+        }
+        if (size <= 0) {
+            throw new BadRequestException("Kích thước trang phải lớn hơn 0");
+        }
+        return PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE));
+    }
+
+    private NotificationResponse toResponse(Notification notification) {
+        return NotificationResponse.builder()
+                .id(notification.getId())
+                .senderId(notification.getSender() == null ? null : notification.getSender().getId())
+                .receiverId(notification.getReceiver() == null ? null : notification.getReceiver().getId())
+                .title(notification.getTitle())
+                .body(notification.getBody())
+                .type(notification.getType())
+                .data(notification.getData())
+                .status(notification.getStatus())
+                .referenceId(extractReferenceId(notification.getData()))
+                .isRead(Boolean.TRUE.equals(notification.getIsRead()))
+                .scheduledAt(notification.getScheduledAt())
+                .sentAt(notification.getSentAt())
+                .readAt(notification.getReadAt())
+                .createdAt(notification.getCreatedAt())
+                .build();
+    }
+
+    private Long extractReferenceId(String data) {
+        if (data == null) {
+            return null;
+        }
+        Matcher matcher = REFERENCE_ID_PATTERN.matcher(data);
+        if (!matcher.find()) {
+            return null;
+        }
+        return Long.valueOf(matcher.group(1));
     }
 }

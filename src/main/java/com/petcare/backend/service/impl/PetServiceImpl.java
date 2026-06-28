@@ -17,7 +17,6 @@ import com.petcare.backend.model.PetTimelineEvent;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.Species;
 import com.petcare.backend.model.User;
-import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.model.WeightLog;
 import com.petcare.backend.repository.BreedRepository;
 import com.petcare.backend.repository.CoParentInvitationRepository;
@@ -25,10 +24,8 @@ import com.petcare.backend.repository.HealthConditionRepository;
 import com.petcare.backend.repository.PetCoParentRepository;
 import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.PetTimelineEventRepository;
-import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.SpeciesRepository;
 import com.petcare.backend.repository.UserRepository;
-import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.repository.WeightLogRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.EmailService;
@@ -61,8 +58,6 @@ public class PetServiceImpl implements PetService {
     private final CoParentInvitationRepository invitationRepository;
     private final WeightLogRepository weightLogRepository;
     private final HealthConditionRepository healthConditionRepository;
-    private final VaccineTemplateRepository vaccineTemplateRepository;
-    private final PetVaccinationRepository petVaccinationRepository;
     private final PetTimelineEventRepository petTimelineEventRepository;
     private final EmailService emailService;
 
@@ -77,6 +72,7 @@ public class PetServiceImpl implements PetService {
 
         Pet pet = new Pet();
         pet.setOwner(owner);
+        pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.NOT_CONFIGURED);
         pet.setName(request.getName().trim());
         if (StringUtils.hasText(request.getAvatarUrl())) {
             pet.setAvatarUrl(request.getAvatarUrl().trim());
@@ -330,10 +326,6 @@ public class PetServiceImpl implements PetService {
             weightLogRepository.save(weightLog);
         }
 
-        if (pet.getSpecies() != null) {
-            generateVaccinationSchedule(pet);
-        }
-
         PetTimelineEvent event = new PetTimelineEvent();
         event.setPet(pet);
         event.setEventType(PetTimelineEvent.EventType.profile_created);
@@ -358,32 +350,6 @@ public class PetServiceImpl implements PetService {
             condition.setIsActive(true);
             healthConditionRepository.save(condition);
         }
-    }
-
-    private void generateVaccinationSchedule(Pet pet) {
-        LocalDate birthReference = resolveBirthReferenceDate(pet);
-        List<VaccineTemplate> templates = vaccineTemplateRepository.findBySpeciesId(pet.getSpecies().getId());
-
-        for (VaccineTemplate template : templates) {
-            PetVaccination vaccination = new PetVaccination();
-            vaccination.setPet(pet);
-            vaccination.setVaccineTemplate(template);
-            vaccination.setVaccineName(template.getVaccineName());
-            vaccination.setDoseNumber(template.getDoseNumber());
-            vaccination.setStatus(PetVaccination.VaccinationStatus.scheduled);
-            vaccination.setScheduledDate(birthReference.plusWeeks(template.getRecommendedAgeWeeks()));
-            petVaccinationRepository.save(vaccination);
-        }
-    }
-
-    private LocalDate resolveBirthReferenceDate(Pet pet) {
-        if (pet.getDateOfBirth() != null) {
-            return pet.getDateOfBirth();
-        }
-        if (pet.getEstimatedAgeMonths() != null && pet.getEstimatedAgeMonths() > 0) {
-            return LocalDate.now().minusMonths(pet.getEstimatedAgeMonths());
-        }
-        return LocalDate.now();
     }
 
     private void applyCustomBreedName(Pet pet, Breed breed, String customBreedName) {

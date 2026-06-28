@@ -42,6 +42,7 @@ public class PetTimelineEvent {
     private LocalDateTime createdAt;
 
     public enum EventType {
-        profile_created, vaccinated, medical_visit, weight_updated, reminder_completed, social_post
+        profile_created, vaccinated, vaccination_schedule_adjusted,
+        medical_visit, weight_updated, reminder_completed, social_post
     }
 }

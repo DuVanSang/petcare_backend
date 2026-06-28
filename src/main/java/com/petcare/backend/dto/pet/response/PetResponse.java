@@ -39,6 +39,7 @@ public class PetResponse {
     private String colorFeatures;
     private String spayedStatus;
     private String status;
+    private String vaccinePlanStatus;
     private String notes;
 
     private LocalDateTime createdAt;
@@ -73,6 +74,7 @@ public class PetResponse {
         dto.setColorFeatures(pet.getColorFeatures());
         dto.setSpayedStatus(pet.getSpayedStatus() != null ? pet.getSpayedStatus().name() : null);
         dto.setStatus(pet.getStatus() != null ? pet.getStatus().name() : null);
+        dto.setVaccinePlanStatus(pet.getVaccinePlanStatus() != null ? pet.getVaccinePlanStatus().name() : null);
         dto.setNotes(pet.getNotes());
         dto.setCreatedAt(pet.getCreatedAt());
         dto.setUpdatedAt(pet.getUpdatedAt());

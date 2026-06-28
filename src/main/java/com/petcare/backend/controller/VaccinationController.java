@@ -2,7 +2,9 @@ package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.vaccination.request.CompleteVaccinationRequest;
+import com.petcare.backend.dto.vaccination.request.ConfirmVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.RescheduleVaccinationRequest;
+import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
 import com.petcare.backend.model.PetVaccination;
@@ -19,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,10 +30,34 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/pets/{petId}/vaccinations")
 @RequiredArgsConstructor
-@Tag(name = "Vaccinations", description = "Quản lý lịch tiêm phòng và hồ sơ tiêm của thú cưng")
+@Tag(name = "Vaccinations", description = "Quản lý lịch và hồ sơ tiêm phòng")
 @SecurityRequirement(name = "bearerAuth")
 public class VaccinationController {
     private final VaccinationService vaccinationService;
+
+    @PostMapping("/setup-plan")
+    @Operation(summary = "Thiết lập và sinh kế hoạch tiêm đề xuất")
+    public ResponseEntity<ApiResponse<List<VaccinationResponse>>> setupPlan(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @Valid @RequestBody SetupVaccinationPlanRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Thiết lập kế hoạch tiêm thành công",
+                vaccinationService.setupPlan(principal, petId, request)
+        ));
+    }
+
+    @PatchMapping("/confirm-plan")
+    @Operation(summary = "Xác nhận và kích hoạt kế hoạch tiêm")
+    public ResponseEntity<ApiResponse<List<VaccinationResponse>>> confirmPlan(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @Valid @RequestBody ConfirmVaccinationPlanRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Kích hoạt lịch tiêm thành công",
+                vaccinationService.confirmPlan(principal, petId, request)
+        ));
+    }
 
     @GetMapping
     @Operation(summary = "Lấy danh sách lịch tiêm của thú cưng")
@@ -45,7 +72,7 @@ public class VaccinationController {
     }
 
     @GetMapping("/{vaccinationId}")
-    @Operation(summary = "Xem chi tiết một mũi tiêm")
+    @Operation(summary = "Lấy chi tiết một mũi tiêm")
     public ResponseEntity<ApiResponse<VaccinationResponse>> getVaccination(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long petId,
@@ -83,7 +110,7 @@ public class VaccinationController {
     }
 
     @PatchMapping("/{vaccinationId}/reschedule")
-    @Operation(summary = "Dời lịch tiêm")
+    @Operation(summary = "Dời ngày dự kiến của một mũi tiêm")
     public ResponseEntity<ApiResponse<VaccinationResponse>> rescheduleVaccination(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long petId,

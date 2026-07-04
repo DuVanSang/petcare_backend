@@ -55,6 +55,9 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Value("${app.upload.pet-avatar-dir:pet-avatar}")
     private String petAvatarDir;
 
+    @Value("${app.upload.user-profile-dir:user-profile}")
+    private String userProfileDir;
+
     @Value("${app.upload.max-file-size-mb:20}")
     private long maxFileSizeMb;
 
@@ -90,8 +93,19 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
 
     @Override
     public UploadFileResponse storePetAvatar(MultipartFile file, Long userId) {
-        validatePetAvatar(file);
+        validateProfileImage(file, "Ảnh đại diện thú cưng không hợp lệ");
         return storeMediaFile(file, petAvatarDir, true);
+    }
+
+    @Override
+    public UploadFileResponse storeUserProfileImage(MultipartFile file, Long userId, String imageType) {
+        validateProfileImage(file, "Ảnh hồ sơ không hợp lệ");
+        String normalizedType = switch (imageType) {
+            case "avatar" -> "avatar";
+            case "cover" -> "cover";
+            default -> throw new BadRequestException("Loại ảnh hồ sơ không hợp lệ");
+        };
+        return storeMediaFile(file, userProfileDir + "/" + normalizedType, true);
     }
 
     @Override
@@ -155,14 +169,14 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
                 .build();
     }
 
-    private void validatePetAvatar(MultipartFile file) {
+    private void validateProfileImage(MultipartFile file, String message) {
         if (file == null || file.isEmpty() || file.getSize() > 5L * 1024 * 1024) {
-            throw new BadRequestException("Invalid pet avatar file");
+            throw new BadRequestException(message);
         }
         String mimeType = file.getContentType();
         if (!StringUtils.hasText(mimeType)
                 || !List.of("image/jpeg", "image/png", "image/webp").contains(mimeType.toLowerCase(Locale.ROOT))) {
-            throw new BadRequestException("Invalid pet avatar file");
+            throw new BadRequestException(message);
         }
     }
 
@@ -171,7 +185,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             case "image/jpeg" -> ".jpg";
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
-            default -> throw new BadRequestException("Invalid pet avatar file");
+            default -> throw new BadRequestException("Ảnh hồ sơ không hợp lệ");
         };
     }
 

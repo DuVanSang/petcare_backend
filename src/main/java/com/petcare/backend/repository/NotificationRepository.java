@@ -1,6 +1,7 @@
 package com.petcare.backend.repository;
 
 import com.petcare.backend.model.Notification;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -8,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
+    long countByStatusAndSentAtBetween(String status, LocalDateTime from, LocalDateTime to);
+
     List<Notification> findByReceiver_IdOrderByCreatedAtDesc(Long receiverId);
 
     Page<Notification> findByReceiver_IdOrderByCreatedAtDesc(Long receiverId, Pageable pageable);

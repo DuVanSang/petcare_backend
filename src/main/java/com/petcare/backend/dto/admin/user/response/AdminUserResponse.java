@@ -1,4 +1,4 @@
-package com.petcare.backend.dto.user.response;
+package com.petcare.backend.dto.admin.user.response;
 
 import com.petcare.backend.model.User;
 import java.time.LocalDate;
@@ -8,7 +8,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class UserResponse {
+public class AdminUserResponse {
     private Long id;
     private String email;
     private String fullName;
@@ -19,18 +19,17 @@ public class UserResponse {
     private String bio;
     private LocalDate dateOfBirth;
     private String location;
-    private String languageCode;
-    private String timezone;
-    private Boolean pushNotificationEnabled;
     private String role;
     private String status;
     private Boolean emailVerified;
     private Boolean isOnline;
     private LocalDateTime lastActiveAt;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
 
-    public static UserResponse from(User user) {
-        return UserResponse.builder()
+    public static AdminUserResponse from(User user) {
+        return AdminUserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -41,15 +40,14 @@ public class UserResponse {
                 .bio(user.getBio())
                 .dateOfBirth(user.getDateOfBirth())
                 .location(user.getLocation())
-                .languageCode(user.getLanguageCode())
-                .timezone(user.getTimezone())
-                .pushNotificationEnabled(user.getPushNotificationEnabled())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .emailVerified(user.getEmailVerified())
                 .isOnline(user.getIsOnline())
                 .lastActiveAt(user.getLastActiveAt())
                 .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .deletedAt(user.getDeletedAt())
                 .build();
     }
 }

@@ -25,6 +25,9 @@ public class Species {
     @Column(name = "icon_url", length = 255)
     private String iconUrl;
 
+    @Column(name = "is_active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private Boolean active = true;
+
     @OneToMany(mappedBy = "species", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Breed> breeds = new ArrayList<>();
 }

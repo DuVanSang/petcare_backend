@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -30,7 +29,10 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<SpeciesResponse> getAllSpecies(int page, int size) {
-        Page<SpeciesResponse> result = speciesRepository.findAll(page(page, size))
+        Page<SpeciesResponse> result = speciesRepository.findAll(
+                        (root, query, cb) -> cb.isTrue(root.get("active")),
+                        page(page, size)
+                )
                 .map(SpeciesResponse::withBreeds);
         return PageResponse.from(result);
     }
@@ -41,7 +43,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (!speciesRepository.existsById(speciesId)) {
             throw new BadRequestException("Loài không tồn tại");
         }
-        return PageResponse.from(breedRepository.findBySpeciesId(speciesId, page(page, size))
+        return PageResponse.from(breedRepository.findBySpeciesIdAndActiveTrue(speciesId, page(page, size))
                 .map(BreedResponse::from));
     }
 

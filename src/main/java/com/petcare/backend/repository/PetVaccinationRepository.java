@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PetVaccinationRepository extends JpaRepository<PetVaccination, Long> {
     boolean existsByPetId(Long petId);
 
+    long countByStatus(PetVaccination.VaccinationStatus status);
+
     List<PetVaccination> findByPetIdOrderByScheduledDateAsc(Long petId);
 
     List<PetVaccination> findByPetIdAndStatusOrderByScheduledDateAsc(

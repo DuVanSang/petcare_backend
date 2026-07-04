@@ -130,7 +130,10 @@ public class AdminUserServiceImpl implements AdminUserService {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("fullName")), pattern),
-                        cb.like(cb.lower(root.get("phoneNumber")), pattern)
+                        cb.like(cb.lower(root.get("username")), pattern),
+                        cb.like(cb.lower(root.get("phoneNumber")), pattern),
+                        cb.like(cb.lower(root.get("bio")), pattern),
+                        cb.like(cb.lower(root.get("location")), pattern)
                 ));
             }
 

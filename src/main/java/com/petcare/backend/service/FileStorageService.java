@@ -15,5 +15,7 @@ public interface FileStorageService {
 
     UploadFileResponse storePetAvatar(MultipartFile file, Long userId);
 
+    UploadFileResponse storeUserProfileImage(MultipartFile file, Long userId, String imageType);
+
     void deleteByUrl(String fileUrl);
 }

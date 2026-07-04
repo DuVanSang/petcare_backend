@@ -2,8 +2,10 @@ package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
+import com.petcare.backend.dto.reminder.request.RescheduleReminderRequest;
 import com.petcare.backend.dto.reminder.request.SnoozeReminderRequest;
 import com.petcare.backend.dto.reminder.request.UpdateReminderRequest;
+import com.petcare.backend.dto.reminder.response.ReminderCategoryResponse;
 import com.petcare.backend.dto.reminder.response.ReminderLogResponse;
 import com.petcare.backend.dto.reminder.response.ReminderResponse;
 import com.petcare.backend.security.UserPrincipal;
@@ -32,6 +34,15 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class ReminderController {
     private final ReminderService reminderService;
+
+    @GetMapping("/categories")
+    @Operation(summary = "Lấy danh sách loại lịch nhắc")
+    public ResponseEntity<ApiResponse<List<ReminderCategoryResponse>>> getReminderCategories() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách loại lịch nhắc thành công",
+                reminderService.getReminderCategories()
+        ));
+    }
 
     @PostMapping
     @Operation(summary = "Tạo lịch nhắc")
@@ -74,6 +85,18 @@ public class ReminderController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật lịch nhắc thành công",
                 reminderService.updateReminder(principal, reminderId, request)
+        ));
+    }
+
+    @PatchMapping("/{reminderId}/reschedule")
+    @Operation(summary = "Dời lịch nhắc")
+    public ResponseEntity<ApiResponse<ReminderResponse>> rescheduleReminder(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long reminderId,
+            @Valid @RequestBody RescheduleReminderRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Dời lịch nhắc thành công",
+                reminderService.rescheduleReminder(principal, reminderId, request)
         ));
     }
 

@@ -1,8 +1,10 @@
 package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
+import com.petcare.backend.dto.reminder.request.RescheduleReminderRequest;
 import com.petcare.backend.dto.reminder.request.SnoozeReminderRequest;
 import com.petcare.backend.dto.reminder.request.UpdateReminderRequest;
+import com.petcare.backend.dto.reminder.response.ReminderCategoryResponse;
 import com.petcare.backend.dto.reminder.response.ReminderLogResponse;
 import com.petcare.backend.dto.reminder.response.ReminderResponse;
 import com.petcare.backend.exception.BadRequestException;
@@ -51,6 +53,26 @@ public class ReminderServiceImpl implements ReminderService {
     private final PetVaccinationRepository vaccinationRepository;
     private final UserRepository userRepository;
     private final ReminderScheduleCalculator scheduleCalculator;
+
+    @Override
+    public List<ReminderCategoryResponse> getReminderCategories() {
+        return List.of(
+                category(CareReminder.ReminderCategory.vaccination, "Tiêm phòng",
+                        "Nhắc lịch tiêm vaccine đã có trong hồ sơ tiêm", "syringe", 1, true),
+                category(CareReminder.ReminderCategory.bathing, "Tắm",
+                        "Nhắc lịch tắm cho thú cưng", "bath", 2, false),
+                category(CareReminder.ReminderCategory.nail_clipping, "Cắt móng",
+                        "Nhắc lịch cắt móng cho thú cưng", "scissors", 3, false),
+                category(CareReminder.ReminderCategory.deworming, "Tẩy giun",
+                        "Nhắc lịch tẩy giun định kỳ", "pill", 4, false),
+                category(CareReminder.ReminderCategory.medication, "Uống thuốc",
+                        "Nhắc lịch dùng thuốc theo chỉ định", "capsule", 5, false),
+                category(CareReminder.ReminderCategory.medical_checkup, "Khám định kỳ",
+                        "Nhắc lịch khám sức khỏe định kỳ", "stethoscope", 6, false),
+                category(CareReminder.ReminderCategory.other, "Khác",
+                        "Nhắc một hoạt động chăm sóc khác", "bell", 7, false)
+        );
+    }
 
     @Override
     @Transactional
@@ -158,6 +180,48 @@ public class ReminderServiceImpl implements ReminderService {
         } else {
             reminder.setNextDueAt(null);
         }
+
+        return ReminderResponse.from(reminderRepository.save(reminder));
+    }
+
+    @Override
+    @Transactional
+    public ReminderResponse rescheduleReminder(
+            UserPrincipal principal,
+            Long reminderId,
+            RescheduleReminderRequest request) {
+        CareReminder reminder = getOwnedReminder(principal, reminderId);
+        ensureCanEditPet(principal, reminder.getPet().getId());
+
+        if (!Boolean.TRUE.equals(reminder.getActive())) {
+            throw new BadRequestException("Không thể dời lịch nhắc đã bị xóa");
+        }
+        if (reminder.getCategory() == CareReminder.ReminderCategory.vaccination
+                && request.getRepeat() != CareReminder.ReminderFrequency.once) {
+            throw new BadRequestException("Nhắc vaccine tùy chỉnh chỉ được đặt một lần");
+        }
+        if (request.getEndDate() != null && request.getEndDate().isBefore(request.getDate())) {
+            throw new BadRequestException("Ngày kết thúc phải từ ngày bắt đầu trở đi");
+        }
+
+        Instant dueAt = scheduleCalculator.toInstant(request.getDate(), request.getTime(), reminder.getTimezone());
+        requireFuture(dueAt);
+
+        reminder.setStartDate(request.getDate());
+        reminder.setReminderTime(request.getTime());
+        reminder.setFrequency(request.getRepeat());
+        reminder.setEndDate(request.getEndDate());
+        reminder.setIntervalValue(intervalValue(request.getRepeat()));
+        reminder.setNextDueAt(dueAt);
+        reminder.setNextDueDate(request.getDate());
+        if (reminder.getVaccination() != null) {
+            reminder.setVaccinationOffsetMinutes(calculateVaccinationOffset(
+                    reminder.getVaccination(), dueAt, reminder.getTimezone()
+            ));
+        }
+
+        cancelOutstandingLogs(reminderId);
+        createPendingLog(reminder, dueAt);
 
         return ReminderResponse.from(reminderRepository.save(reminder));
     }
@@ -317,8 +381,32 @@ public class ReminderServiceImpl implements ReminderService {
         };
     }
 
+    private ReminderCategoryResponse category(
+            CareReminder.ReminderCategory value,
+            String label,
+            String description,
+            String icon,
+            int sortOrder,
+            boolean requiresVaccination) {
+        return ReminderCategoryResponse.builder()
+                .value(value)
+                .label(label)
+                .description(description)
+                .icon(icon)
+                .sortOrder(sortOrder)
+                .requiresVaccination(requiresVaccination)
+                .customReminderSupported(true)
+                .build();
+    }
+
     private int intervalValue(CareReminder.ReminderFrequency frequency) {
-        return frequency == CareReminder.ReminderFrequency.quarterly ? 3 : 1;
+        if (frequency == CareReminder.ReminderFrequency.quarterly) {
+            return 3;
+        }
+        if (frequency == CareReminder.ReminderFrequency.yearly) {
+            return 12;
+        }
+        return 1;
     }
 
     private String validTimezone(String timezone) {

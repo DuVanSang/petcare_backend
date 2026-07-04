@@ -124,6 +124,7 @@ public class CareReminder {
         daily,
         weekly,
         monthly,
+        yearly,
         quarterly
     }
 }

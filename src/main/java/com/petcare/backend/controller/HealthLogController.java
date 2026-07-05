@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,19 +22,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@Tag(name = "Health Tracking", description = "Theo dõi sức khỏe & cân nặng thú cưng")
+@Tag(name = "Health Tracking", description = "Theo dõi sức khỏe và cân nặng thú cưng")
 @SecurityRequirement(name = "bearerAuth")
 public class HealthLogController {
 
     private final HealthLogService healthLogService;
 
     @PostMapping("/health-logs")
-    @Operation(summary = "Ghi nhật ký sức khỏe & cân nặng hàng ngày")
+    @Operation(summary = "Ghi nhật ký sức khỏe và cân nặng")
     public ResponseEntity<ApiResponse<HealthLogResponse>> createHealthLog(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateHealthLogRequest request) {
@@ -55,7 +54,7 @@ public class HealthLogController {
     }
 
     @GetMapping("/pets/{petId}/weight-logs")
-    @Operation(summary = "Lấy lịch sử cân nặng (phục vụ biểu đồ)")
+    @Operation(summary = "Lấy lịch sử cân nặng")
     public ResponseEntity<ApiResponse<List<WeightLogResponse>>> getWeightLogs(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long petId) {

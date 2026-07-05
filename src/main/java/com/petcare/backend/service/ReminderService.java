@@ -2,6 +2,7 @@ package com.petcare.backend.service;
 
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
 import com.petcare.backend.dto.reminder.request.RescheduleReminderRequest;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.dto.reminder.request.SnoozeReminderRequest;
 import com.petcare.backend.dto.reminder.request.UpdateReminderRequest;
 import com.petcare.backend.dto.reminder.response.ReminderCategoryResponse;
@@ -15,7 +16,7 @@ public interface ReminderService {
 
     ReminderResponse createReminder(UserPrincipal principal, CreateReminderRequest request);
 
-    List<ReminderResponse> getMyReminders(UserPrincipal principal);
+    List<ReminderResponse> getMyReminders(UserPrincipal principal, ReminderStatusFilter status);
 
     ReminderResponse getReminder(UserPrincipal principal, Long reminderId);
 

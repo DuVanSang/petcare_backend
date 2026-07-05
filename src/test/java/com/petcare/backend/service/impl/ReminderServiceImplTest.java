@@ -1,11 +1,17 @@
 package com.petcare.backend.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
+import com.petcare.backend.dto.reminder.response.ReminderResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.CareReminder;
 import com.petcare.backend.model.Pet;
@@ -21,6 +27,7 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,6 +117,30 @@ class ReminderServiceImplTest {
                 .hasMessage("Chỉ có thể tạo nhắc nhở cho mũi tiêm đã lên lịch hoặc quá hạn");
     }
 
+    @Test
+    void getMyRemindersCanFilterByOverdueViewStatus() {
+        CareReminder overdue = reminder(101L);
+        CareReminder upcoming = reminder(102L);
+        when(principal.getId()).thenReturn(1L);
+        when(reminderRepository.findByCreatedByIdAndActiveTrueOrderByNextDueAtAsc(1L))
+                .thenReturn(List.of(overdue, upcoming));
+        when(logRepository.existsByReminderIdAndStatusInAndDueAtLessThanEqual(
+                eq(101L), anyCollection(), any()
+        )).thenReturn(true);
+        when(logRepository.existsByReminderIdAndStatusInAndDueAtLessThanEqual(
+                eq(102L), anyCollection(), any()
+        )).thenReturn(false);
+        when(logRepository.existsByReminderIdAndStatusInAndDueAtAfter(
+                eq(102L), anyCollection(), any()
+        )).thenReturn(true);
+
+        List<ReminderResponse> result = service.getMyReminders(principal, ReminderStatusFilter.overdue);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(101L);
+        assertThat(result.get(0).getStatus()).isEqualTo("overdue");
+    }
+
     private CreateReminderRequest bathingRequest() {
         CreateReminderRequest request = new CreateReminderRequest();
         request.setPetId(10L);
@@ -118,5 +149,19 @@ class ReminderServiceImplTest {
         request.setTime(LocalTime.of(9, 0));
         request.setRepeat(CareReminder.ReminderFrequency.weekly);
         return request;
+    }
+
+    private CareReminder reminder(Long id) {
+        CareReminder reminder = new CareReminder();
+        reminder.setId(id);
+        reminder.setPet(pet);
+        reminder.setCategory(CareReminder.ReminderCategory.bathing);
+        reminder.setTitle("Tắm cho Milo");
+        reminder.setStartDate(LocalDate.now().plusDays(1));
+        reminder.setReminderTime(LocalTime.of(9, 0));
+        reminder.setTimezone("Asia/Ho_Chi_Minh");
+        reminder.setFrequency(CareReminder.ReminderFrequency.weekly);
+        reminder.setActive(true);
+        return reminder;
     }
 }

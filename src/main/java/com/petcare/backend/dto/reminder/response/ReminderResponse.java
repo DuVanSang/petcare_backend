@@ -16,6 +16,7 @@ public class ReminderResponse {
     private String petName;
     private Long vaccinationId;
     private String category;
+    private String status;
     private String title;
     private String notes;
     private LocalDate date;
@@ -29,12 +30,17 @@ public class ReminderResponse {
     private LocalDateTime updatedAt;
 
     public static ReminderResponse from(CareReminder reminder) {
+        return from(reminder, null);
+    }
+
+    public static ReminderResponse from(CareReminder reminder, String status) {
         return ReminderResponse.builder()
                 .id(reminder.getId())
                 .petId(reminder.getPet().getId())
                 .petName(reminder.getPet().getName())
                 .vaccinationId(reminder.getVaccination() != null ? reminder.getVaccination().getId() : null)
                 .category(reminder.getCategory().name())
+                .status(status)
                 .title(reminder.getTitle())
                 .notes(reminder.getNotes())
                 .date(reminder.getStartDate())

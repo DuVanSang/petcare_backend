@@ -53,6 +53,22 @@ public interface CareReminderLogRepository extends JpaRepository<CareReminderLog
             Collection<CareReminderLog.ReminderLogStatus> statuses
     );
 
+    boolean existsByReminderIdAndStatusIn(Long reminderId, Collection<CareReminderLog.ReminderLogStatus> statuses);
+
+    boolean existsByReminderIdAndStatusInAndDueAtLessThanEqual(
+            Long reminderId,
+            Collection<CareReminderLog.ReminderLogStatus> statuses,
+            Instant dueAt
+    );
+
+    boolean existsByReminderIdAndStatusInAndDueAtAfter(
+            Long reminderId,
+            Collection<CareReminderLog.ReminderLogStatus> statuses,
+            Instant dueAt
+    );
+
+    boolean existsByReminderIdAndStatus(Long reminderId, CareReminderLog.ReminderLogStatus status);
+
     boolean existsByReminderIdAndDueAt(Long reminderId, Instant dueAt);
 
     boolean existsByReminderIdAndDueAtAndIdNot(Long reminderId, Instant dueAt, Long id);

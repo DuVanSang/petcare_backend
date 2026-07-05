@@ -2,6 +2,7 @@ package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
 import com.petcare.backend.dto.reminder.request.RescheduleReminderRequest;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.dto.reminder.request.SnoozeReminderRequest;
 import com.petcare.backend.dto.reminder.request.UpdateReminderRequest;
 import com.petcare.backend.dto.reminder.response.ReminderCategoryResponse;
@@ -115,16 +116,19 @@ public class ReminderServiceImpl implements ReminderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReminderResponse> getMyReminders(UserPrincipal principal) {
+    public List<ReminderResponse> getMyReminders(UserPrincipal principal, ReminderStatusFilter status) {
         return reminderRepository.findByCreatedByIdAndActiveTrueOrderByNextDueAtAsc(principal.getId()).stream()
-                .map(ReminderResponse::from)
+                .map(reminder -> new ReminderListItem(reminder, resolveViewStatus(reminder)))
+                .filter(item -> status == ReminderStatusFilter.all || item.status() == status)
+                .map(item -> ReminderResponse.from(item.reminder(), item.status().name()))
                 .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public ReminderResponse getReminder(UserPrincipal principal, Long reminderId) {
-        return ReminderResponse.from(getOwnedReminder(principal, reminderId));
+        CareReminder reminder = getOwnedReminder(principal, reminderId);
+        return ReminderResponse.from(reminder, resolveViewStatus(reminder).name());
     }
 
     @Override
@@ -283,6 +287,27 @@ public class ReminderServiceImpl implements ReminderService {
                 .toList();
     }
 
+    private ReminderStatusFilter resolveViewStatus(CareReminder reminder) {
+        Instant now = Instant.now();
+        Long reminderId = reminder.getId();
+        if (logRepository.existsByReminderIdAndStatusInAndDueAtLessThanEqual(
+                reminderId, ACTIONABLE_STATUSES, now
+        )) {
+            return ReminderStatusFilter.overdue;
+        }
+        if (logRepository.existsByReminderIdAndStatusInAndDueAtAfter(
+                reminderId, ACTIONABLE_STATUSES, now
+        )) {
+            return ReminderStatusFilter.upcoming;
+        }
+        if (logRepository.existsByReminderIdAndStatus(
+                reminderId, CareReminderLog.ReminderLogStatus.completed
+        )) {
+            return ReminderStatusFilter.completed;
+        }
+        return ReminderStatusFilter.upcoming;
+    }
+
     private Pet ensureCanEditPet(UserPrincipal principal, Long petId) {
         Pet pet = petRepository.findByIdAndAccessibleByUserId(petId, principal.getId())
                 .orElseThrow(() -> new BadRequestException(
@@ -432,5 +457,8 @@ public class ReminderServiceImpl implements ReminderService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private record ReminderListItem(CareReminder reminder, ReminderStatusFilter status) {
     }
 }

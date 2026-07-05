@@ -354,7 +354,7 @@ CREATE TABLE `health_logs` (
   `pet_id` bigint unsigned NOT NULL,
   `logged_date` date NOT NULL,
   `appetite` enum('good','normal','poor') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
-  `activity_level` enum('low','moderate','high','lethargic') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'moderate',
+  `activity_level` enum('very_active','active','moderate','low') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'moderate',
   `abnormal_event` text COLLATE utf8mb4_unicode_ci,
   `treatment_notes` text COLLATE utf8mb4_unicode_ci,
   `logged_by` bigint unsigned NOT NULL,

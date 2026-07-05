@@ -3,6 +3,7 @@ package com.petcare.backend.controller;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.CreateReminderRequest;
 import com.petcare.backend.dto.reminder.request.RescheduleReminderRequest;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.dto.reminder.request.SnoozeReminderRequest;
 import com.petcare.backend.dto.reminder.request.UpdateReminderRequest;
 import com.petcare.backend.dto.reminder.response.ReminderCategoryResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -58,10 +60,11 @@ public class ReminderController {
     @GetMapping
     @Operation(summary = "Lấy danh sách lịch nhắc của tôi")
     public ResponseEntity<ApiResponse<List<ReminderResponse>>> getMyReminders(
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "all") ReminderStatusFilter status) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách lịch nhắc thành công",
-                reminderService.getMyReminders(principal)
+                reminderService.getMyReminders(principal, status)
         ));
     }
 

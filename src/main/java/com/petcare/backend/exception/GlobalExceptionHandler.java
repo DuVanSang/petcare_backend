@@ -1,6 +1,7 @@
 package com.petcare.backend.exception;
 
 import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +46,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == ReminderStatusFilter.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái lịch nhắc không hợp lệ", null));
+        }
         if ("status".equals(ex.getName())) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
         }

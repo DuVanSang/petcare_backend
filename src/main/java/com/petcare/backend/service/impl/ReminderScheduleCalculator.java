@@ -30,6 +30,7 @@ public class ReminderScheduleCalculator {
             case weekly -> currentDate.plusWeeks(1);
             case monthly -> nextMonthDate(currentDate, reminder.getStartDate().getDayOfMonth(), 1);
             case quarterly -> nextMonthDate(currentDate, reminder.getStartDate().getDayOfMonth(), 3);
+            case yearly -> nextMonthDate(currentDate, reminder.getStartDate().getDayOfMonth(), 12);
             case once -> throw new IllegalStateException("Reminder once không có chu kỳ tiếp theo");
         };
 

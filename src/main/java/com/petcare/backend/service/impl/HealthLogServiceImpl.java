@@ -18,15 +18,15 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.repository.WeightLogRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.HealthLogService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -47,16 +47,17 @@ public class HealthLogServiceImpl implements HealthLogService {
         assertCanEdit(pet, userId);
 
         User user = getUser(userId);
-        LocalDate today = LocalDate.now();
+        LocalDate loggedDate = request.getDate();
 
-        HealthLog healthLog = healthLogRepository.findByPetIdAndLoggedDate(pet.getId(), today)
+        HealthLog healthLog = healthLogRepository.findByPetIdAndLoggedDate(pet.getId(), loggedDate)
                 .orElseGet(() -> {
                     HealthLog log = new HealthLog();
                     log.setPet(pet);
-                    log.setLoggedDate(today);
+                    log.setLoggedDate(loggedDate);
                     return log;
                 });
         healthLog.setAppetite(request.getAppetite());
+        healthLog.setActivityLevel(request.getActivityLevel());
         healthLog.setTreatmentNotes(StringUtils.hasText(request.getNotes()) ? request.getNotes().trim() : null);
         healthLog.setLoggedBy(user);
         HealthLog savedHealthLog = healthLogRepository.save(healthLog);
@@ -64,7 +65,7 @@ public class HealthLogServiceImpl implements HealthLogService {
         WeightLog weightLog = new WeightLog();
         weightLog.setPet(pet);
         weightLog.setWeight(request.getWeight());
-        weightLog.setLoggedDate(today);
+        weightLog.setLoggedDate(loggedDate);
         weightLog.setLoggedBy(user);
         WeightLog savedWeightLog = weightLogRepository.save(weightLog);
 
@@ -75,7 +76,7 @@ public class HealthLogServiceImpl implements HealthLogService {
         event.setPet(pet);
         event.setEventType(PetTimelineEvent.EventType.weight_updated);
         event.setReferenceId(savedWeightLog.getId());
-        event.setEventDate(today);
+        event.setEventDate(loggedDate);
         event.setSummary("Cân nặng được cập nhật mới: " + formatWeight(request.getWeight()) + " kg.");
         petTimelineEventRepository.save(event);
 
@@ -86,7 +87,7 @@ public class HealthLogServiceImpl implements HealthLogService {
     @Transactional(readOnly = true)
     public List<HealthLogResponse> getHealthLogs(UserPrincipal principal, Long petId) {
         Pet pet = getAccessiblePet(petId, principal.getId());
-        Map<LocalDate, java.math.BigDecimal> weightByDate = weightLogRepository
+        Map<LocalDate, BigDecimal> weightByDate = weightLogRepository
                 .findByPetIdOrderByLoggedDateAsc(pet.getId()).stream()
                 .collect(Collectors.toMap(
                         WeightLog::getLoggedDate,
@@ -121,7 +122,9 @@ public class HealthLogServiceImpl implements HealthLogService {
 
     private Pet getAccessiblePet(Long petId, Long userId) {
         return petRepository.findByIdAndAccessibleByUserId(petId, userId)
-                .orElseThrow(() -> new BadRequestException("Thú cưng không tồn tại hoặc bạn không có quyền truy cập"));
+                .orElseThrow(() -> new BadRequestException(
+                        "Thú cưng không tồn tại hoặc bạn không có quyền truy cập"
+                ));
     }
 
     private void assertCanEdit(Pet pet, Long userId) {
@@ -144,7 +147,7 @@ public class HealthLogServiceImpl implements HealthLogService {
                 .orElseThrow(() -> new BadRequestException("Người dùng không tồn tại"));
     }
 
-    private String formatWeight(java.math.BigDecimal weight) {
+    private String formatWeight(BigDecimal weight) {
         return weight.stripTrailingZeros().toPlainString();
     }
 }

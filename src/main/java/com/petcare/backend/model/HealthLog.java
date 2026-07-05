@@ -65,6 +65,6 @@ public class HealthLog {
     }
 
     public enum ActivityLevel {
-        low, moderate, high, lethargic
+        very_active, active, moderate, low
     }
 }

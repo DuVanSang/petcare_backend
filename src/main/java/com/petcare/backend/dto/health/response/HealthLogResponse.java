@@ -16,6 +16,7 @@ public class HealthLogResponse {
     private Long petId;
     private LocalDate loggedDate;
     private HealthLog.Appetite appetite;
+    private HealthLog.ActivityLevel activityLevel;
     private String notes;
     private BigDecimal weight;
     private BigDecimal currentWeight;
@@ -28,6 +29,7 @@ public class HealthLogResponse {
                 .petId(healthLog.getPet().getId())
                 .loggedDate(healthLog.getLoggedDate())
                 .appetite(healthLog.getAppetite())
+                .activityLevel(healthLog.getActivityLevel())
                 .notes(healthLog.getTreatmentNotes())
                 .weight(weight)
                 .currentWeight(currentWeight)

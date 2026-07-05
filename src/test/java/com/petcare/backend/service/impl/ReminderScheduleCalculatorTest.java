@@ -50,6 +50,24 @@ class ReminderScheduleCalculatorTest {
                 .isEqualTo(LocalDate.of(2026, 4, 30));
     }
 
+    @Test
+    void yearlyReminderAddsTwelveMonthsAndUsesLastDayWhenNeeded() {
+        CareReminder reminder = reminder(
+                LocalDate.of(2024, 2, 29),
+                CareReminder.ReminderFrequency.yearly
+        );
+        Instant current = calculator.toInstant(
+                reminder.getStartDate(),
+                reminder.getReminderTime(),
+                reminder.getTimezone()
+        );
+
+        Instant next = calculator.nextDue(reminder, current);
+
+        assertThat(calculator.toLocalDate(next, reminder.getTimezone()))
+                .isEqualTo(LocalDate.of(2025, 2, 28));
+    }
+
     private CareReminder reminder(LocalDate startDate, CareReminder.ReminderFrequency frequency) {
         CareReminder reminder = new CareReminder();
         reminder.setStartDate(startDate);

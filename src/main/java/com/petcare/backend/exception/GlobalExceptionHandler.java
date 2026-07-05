@@ -2,6 +2,7 @@ package com.petcare.backend.exception;
 
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
+import com.petcare.backend.model.Blog;
 import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,6 +49,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         if ("status".equals(ex.getName()) && ex.getRequiredType() == ReminderStatusFilter.class) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái lịch nhắc không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái blog không hợp lệ", null));
+        }
+        if ("category".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogCategory.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Danh mục blog không hợp lệ", null));
         }
         if ("status".equals(ex.getName())) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));

@@ -7,7 +7,11 @@ import com.petcare.backend.model.CareReminder;
 import com.petcare.backend.model.CareReminderLog;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
+import com.petcare.backend.model.SocialReport;
 import com.petcare.backend.model.VaccinationReminderLog;
+import com.petcare.backend.model.enums.CommentStatus;
+import com.petcare.backend.model.enums.PostPrivacy;
+import com.petcare.backend.model.enums.PostStatus;
 import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,6 +87,25 @@ public class GlobalExceptionHandler {
         if ("status".equals(ex.getName())
                 && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStatus.class) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log nhắc tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == PostStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bài viết không hợp lệ", null));
+        }
+        if ("privacy".equals(ex.getName()) && ex.getRequiredType() == PostPrivacy.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Quyền riêng tư bài viết không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == CommentStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bình luận không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái báo cáo không hợp lệ", null));
+        }
+        if ("targetType".equals(ex.getName())
+                && ex.getRequiredType() == SocialReport.ModerationTargetType.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Loại đối tượng báo cáo không hợp lệ", null));
+        }
+        if ("reason".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportReason.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Lý do báo cáo không hợp lệ", null));
         }
         if ("status".equals(ex.getName())) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));

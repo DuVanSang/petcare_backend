@@ -586,6 +586,54 @@ CREATE TABLE `pets` (
 -- Table structure for table `post_comments`
 --
 
+DROP TABLE IF EXISTS `moderation_actions`;
+DROP TABLE IF EXISTS `social_reports`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `social_reports` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `target_type` enum('post','comment') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_id` bigint unsigned NOT NULL,
+  `reporter_id` bigint unsigned NOT NULL,
+  `reason` enum('spam','harassment','inappropriate_content','misinformation','privacy_violation','other') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','reviewing','resolved','rejected') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `resolved_by` bigint unsigned DEFAULT NULL,
+  `resolution_note` text COLLATE utf8mb4_unicode_ci,
+  `resolved_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_social_reports_target` (`target_type`,`target_id`),
+  KEY `idx_social_reports_status_created` (`status`,`created_at`),
+  KEY `idx_social_reports_reporter` (`reporter_id`),
+  KEY `fk_social_reports_resolver` (`resolved_by`),
+  CONSTRAINT `fk_social_reports_reporter` FOREIGN KEY (`reporter_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_social_reports_resolver` FOREIGN KEY (`resolved_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `moderation_actions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `target_type` enum('post','comment') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_id` bigint unsigned NOT NULL,
+  `action` enum('hide','restore','resolve_report','reject_report') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` text COLLATE utf8mb4_unicode_ci,
+  `moderator_id` bigint unsigned NOT NULL,
+  `report_id` bigint unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_moderation_actions_target` (`target_type`,`target_id`),
+  KEY `idx_moderation_actions_moderator` (`moderator_id`),
+  KEY `idx_moderation_actions_created` (`created_at`),
+  KEY `fk_moderation_actions_report` (`report_id`),
+  CONSTRAINT `fk_moderation_actions_moderator` FOREIGN KEY (`moderator_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_moderation_actions_report` FOREIGN KEY (`report_id`) REFERENCES `social_reports` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 DROP TABLE IF EXISTS `post_comments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

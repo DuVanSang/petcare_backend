@@ -3,11 +3,14 @@ package com.petcare.backend.controller;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.vaccination.request.CompleteVaccinationRequest;
 import com.petcare.backend.dto.vaccination.request.ConfirmVaccinationPlanRequest;
+import com.petcare.backend.dto.vaccination.request.CreateManualVaccinationRequest;
 import com.petcare.backend.dto.vaccination.request.RescheduleVaccinationRequest;
 import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
+import com.petcare.backend.dto.vaccination.response.VaccineOptionResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
 import com.petcare.backend.model.PetVaccination;
+import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccinationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,6 +71,31 @@ public class VaccinationController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách lịch tiêm thành công",
                 vaccinationService.getVaccinations(principal, petId, status)
+        ));
+    }
+
+    @GetMapping("/options")
+    @Operation(summary = "Lấy danh sách vaccine có thể chọn")
+    public ResponseEntity<ApiResponse<List<VaccineOptionResponse>>> getVaccineOptions(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @RequestParam(required = false) VaccineTemplate.TargetStage targetStage,
+            @RequestParam(required = false) String seriesCode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách vaccine có thể chọn thành công",
+                vaccinationService.getVaccineOptions(principal, petId, targetStage, seriesCode)
+        ));
+    }
+
+    @PostMapping
+    @Operation(summary = "Tạo mũi tiêm thủ công từ vaccine hệ thống")
+    public ResponseEntity<ApiResponse<VaccinationResponse>> createManualVaccination(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @Valid @RequestBody CreateManualVaccinationRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tạo mũi tiêm thủ công thành công",
+                vaccinationService.createManualVaccination(principal, petId, request)
         ));
     }
 

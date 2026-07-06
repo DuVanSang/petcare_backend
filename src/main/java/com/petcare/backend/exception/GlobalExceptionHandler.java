@@ -9,6 +9,7 @@ import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.SocialReport;
 import com.petcare.backend.model.VaccinationReminderLog;
+import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.model.enums.CommentStatus;
 import com.petcare.backend.model.enums.PostPrivacy;
 import com.petcare.backend.model.enums.PostStatus;
@@ -73,6 +74,9 @@ public class GlobalExceptionHandler {
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == PetVaccination.VaccinationStatus.class) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
+        }
+        if ("targetStage".equals(ex.getName()) && ex.getRequiredType() == VaccineTemplate.TargetStage.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn vaccine không hợp lệ", null));
         }
         if ("category".equals(ex.getName()) && ex.getRequiredType() == CareReminder.ReminderCategory.class) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Loại lịch nhắc không hợp lệ", null));

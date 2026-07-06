@@ -14,12 +14,16 @@ public interface PetVaccinationRepository extends JpaRepository<PetVaccination, 
 
     long countByStatus(PetVaccination.VaccinationStatus status);
 
+    long countByPetId(Long petId);
+
     List<PetVaccination> findByPetIdOrderByScheduledDateAsc(Long petId);
 
     List<PetVaccination> findByPetIdAndStatusOrderByScheduledDateAsc(
             Long petId,
             PetVaccination.VaccinationStatus status
     );
+
+    long countByPetIdAndStatus(Long petId, PetVaccination.VaccinationStatus status);
 
     Optional<PetVaccination> findByIdAndPetId(Long id, Long petId);
 

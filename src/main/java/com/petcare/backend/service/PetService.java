@@ -26,6 +26,8 @@ public interface PetService {
     PetResponse updatePet(UserPrincipal principal, Long petId, UpdatePetRequest request);
     PetResponse updatePet(Long currentUserId, Long petId, UpdatePetRequest request, MultipartFile avatar);
 
+    PetResponse archivePet(UserPrincipal principal, Long petId);
+
     void deletePet(UserPrincipal principal, Long petId);
 
     List<CoParentResponse> getCoParents(UserPrincipal principal, Long petId);

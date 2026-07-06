@@ -120,6 +120,17 @@ public class PetController {
         return ResponseEntity.ok(ApiResponse.success("Xóa thú cưng thành công", null));
     }
 
+    @PatchMapping("/{petId}/archive")
+    @Operation(summary = "Lưu trữ thú cưng")
+    public ResponseEntity<ApiResponse<PetResponse>> archivePet(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lưu trữ thú cưng thành công",
+                petService.archivePet(principal, petId)
+        ));
+    }
+
     @GetMapping("/{petId}/co-parents")
     @Operation(summary = "Lấy danh sách đồng nuôi")
     public ResponseEntity<ApiResponse<List<CoParentResponse>>> getCoParents(

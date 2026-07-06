@@ -5,9 +5,10 @@ import com.petcare.backend.model.enums.CommentStatus;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface PostCommentRepository extends JpaRepository<PostComment, Long> {
+public interface PostCommentRepository extends JpaRepository<PostComment, Long>, JpaSpecificationExecutor<PostComment> {
     Page<PostComment> findByPost_IdAndParentCommentIdIsNullAndStatusOrderByCreatedAtDesc(
             Long postId,
             CommentStatus status,

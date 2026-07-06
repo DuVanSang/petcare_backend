@@ -189,6 +189,26 @@ public class PetServiceImpl implements PetService {
 
     @Override
     @Transactional
+    public PetResponse archivePet(UserPrincipal principal, Long petId) {
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thú cưng"));
+
+        if (!pet.getOwner().getId().equals(principal.getId())) {
+            throw new ForbiddenException("Chỉ chủ nuôi mới có thể lưu trữ thú cưng");
+        }
+        if (pet.getStatus() == Pet.PetStatus.deceased) {
+            throw new ConflictException("Không thể lưu trữ thú cưng đã mất");
+        }
+        if (pet.getStatus() == Pet.PetStatus.archived) {
+            return toPetResponse(pet, "owner");
+        }
+
+        pet.setStatus(Pet.PetStatus.archived);
+        return toPetResponse(petRepository.save(pet), "owner");
+    }
+
+    @Override
+    @Transactional
     public void deletePet(UserPrincipal principal, Long petId) {
         Pet pet = petRepository.findById(petId)
                 .orElseThrow(() -> new BadRequestException("Thú cưng không tồn tại"));

@@ -18,6 +18,7 @@ import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.PetTimelineEventRepository;
 import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.UserRepository;
+import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccineScheduleService;
 import com.petcare.backend.service.ReminderSynchronizationService;
@@ -43,6 +44,8 @@ class VaccinationServiceImplTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private VaccineTemplateRepository vaccineTemplateRepository;
+    @Mock
     private VaccineScheduleService vaccineScheduleService;
     @Mock
     private ReminderSynchronizationService reminderSynchronizationService;
@@ -60,6 +63,7 @@ class VaccinationServiceImplTest {
                 vaccinationRepository,
                 timelineEventRepository,
                 userRepository,
+                vaccineTemplateRepository,
                 vaccineScheduleService,
                 reminderSynchronizationService
         );

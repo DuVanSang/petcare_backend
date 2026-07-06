@@ -3,6 +3,11 @@ package com.petcare.backend.exception;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.model.Blog;
+import com.petcare.backend.model.CareReminder;
+import com.petcare.backend.model.CareReminderLog;
+import com.petcare.backend.model.Pet;
+import com.petcare.backend.model.PetVaccination;
+import com.petcare.backend.model.VaccinationReminderLog;
 import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,6 +60,29 @@ public class GlobalExceptionHandler {
         }
         if ("category".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogCategory.class) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Danh mục blog không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == Pet.PetStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái thú cưng không hợp lệ", null));
+        }
+        if ("vaccinePlanStatus".equals(ex.getName()) && ex.getRequiredType() == Pet.VaccinePlanStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái kế hoạch tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == PetVaccination.VaccinationStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
+        }
+        if ("category".equals(ex.getName()) && ex.getRequiredType() == CareReminder.ReminderCategory.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Loại lịch nhắc không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == CareReminderLog.ReminderLogStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log lịch nhắc không hợp lệ", null));
+        }
+        if ("stage".equals(ex.getName())
+                && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStage.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn nhắc tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName())
+                && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log nhắc tiêm không hợp lệ", null));
         }
         if ("status".equals(ex.getName())) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));

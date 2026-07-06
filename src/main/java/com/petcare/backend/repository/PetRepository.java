@@ -1,6 +1,8 @@
 package com.petcare.backend.repository;
 
 import com.petcare.backend.model.Pet;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,4 +41,27 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
               )
             """)
     Optional<Pet> findByIdAndAccessibleByUserId(@Param("petId") Long petId, @Param("userId") Long userId);
+
+    @Query("""
+            SELECT p FROM Pet p
+            JOIN p.owner owner
+            LEFT JOIN p.species species
+            WHERE (:keyword IS NULL
+                   OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(owner.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(owner.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:ownerId IS NULL OR owner.id = :ownerId)
+              AND (:speciesId IS NULL OR species.id = :speciesId)
+              AND (:status IS NULL OR p.status = :status)
+              AND (:vaccinePlanStatus IS NULL OR p.vaccinePlanStatus = :vaccinePlanStatus)
+            ORDER BY p.createdAt DESC
+            """)
+    Page<Pet> searchForAdmin(
+            @Param("keyword") String keyword,
+            @Param("ownerId") Long ownerId,
+            @Param("speciesId") Long speciesId,
+            @Param("status") Pet.PetStatus status,
+            @Param("vaccinePlanStatus") Pet.VaccinePlanStatus vaccinePlanStatus,
+            Pageable pageable
+    );
 }

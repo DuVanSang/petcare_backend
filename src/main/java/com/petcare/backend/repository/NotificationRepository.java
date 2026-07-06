@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
+public interface NotificationRepository extends JpaRepository<Notification, Long>, JpaSpecificationExecutor<Notification> {
     long countByStatusAndSentAtBetween(String status, LocalDateTime from, LocalDateTime to);
 
     List<Notification> findByReceiver_IdOrderByCreatedAtDesc(Long receiverId);

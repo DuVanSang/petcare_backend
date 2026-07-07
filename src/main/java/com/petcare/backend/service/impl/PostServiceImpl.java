@@ -4,6 +4,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.post.request.CreatePostMediaRequest;
 import com.petcare.backend.dto.post.request.CreatePostRequest;
 import com.petcare.backend.dto.post.request.UpdatePostRequest;
+import com.petcare.backend.dto.post.response.PetSummaryResponse;
 import com.petcare.backend.dto.post.response.PostCommentResponse;
 import com.petcare.backend.dto.post.response.PostResponse;
 import com.petcare.backend.dto.post.response.ReactionSummaryResponse;
@@ -38,6 +39,9 @@ import com.petcare.backend.service.PostService;
 import com.petcare.backend.service.SocialPermissionService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -410,12 +414,53 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostResponse buildPostResponse(Post post, Long currentUserId) {
+        return buildPostResponse(post, currentUserId, loadPetSummaries(List.of(post)));
+    }
+
+    private PostResponse buildPostResponse(
+            Post post,
+            Long currentUserId,
+            Map<Long, PetSummaryResponse> petSummaries
+    ) {
         List<PostMedia> media = postMediaRepository.findByPost_IdOrderByDisplayOrderAsc(post.getId());
         ReactionSummaryResponse reactions = buildReactionSummary(post, currentUserId);
         long commentCount = countVisibleComments(post);
-        PostResponse response = postMapper.toPostResponse(post, media, reactions, commentCount, currentUserId);
+        PostResponse response = postMapper.toPostResponse(
+                post,
+                media,
+                buildPetResponses(post, petSummaries),
+                reactions,
+                commentCount,
+                currentUserId
+        );
         response.setComments(buildPostCommentResponses(post, currentUserId));
         return response;
+    }
+
+    private List<PetSummaryResponse> buildPetResponses(Post post, Map<Long, PetSummaryResponse> petSummaries) {
+        if (post.getPetId() == null || petSummaries == null) {
+            return List.of();
+        }
+        PetSummaryResponse pet = petSummaries.get(post.getPetId());
+        return pet == null ? List.of() : List.of(pet);
+    }
+
+    private Map<Long, PetSummaryResponse> loadPetSummaries(List<Post> posts) {
+        List<Long> petIds = posts.stream()
+                .map(Post::getPetId)
+                .filter(petId -> petId != null)
+                .distinct()
+                .toList();
+        if (petIds.isEmpty()) {
+            return Map.of();
+        }
+        return petRepository.findAllById(petIds)
+                .stream()
+                .map(pet -> PetSummaryResponse.builder()
+                        .id(pet.getId())
+                        .name(pet.getName())
+                        .build())
+                .collect(Collectors.toMap(PetSummaryResponse::getId, Function.identity()));
     }
 
     private ReactionSummaryResponse buildReactionSummary(Post post, Long currentUserId) {
@@ -506,9 +551,10 @@ public class PostServiceImpl implements PostService {
     }
 
     private PageResponse<PostResponse> toPostPageResponse(Page<Post> posts, Long currentUserId) {
+        Map<Long, PetSummaryResponse> petSummaries = loadPetSummaries(posts.getContent());
         List<PostResponse> content = posts.getContent()
                 .stream()
-                .map(post -> buildPostResponse(post, currentUserId))
+                .map(post -> buildPostResponse(post, currentUserId, petSummaries))
                 .toList();
 
         return PageResponse.<PostResponse>builder()

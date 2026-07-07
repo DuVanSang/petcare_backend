@@ -2,6 +2,7 @@ package com.petcare.backend.service;
 
 import com.petcare.backend.dto.post.response.PostCommentResponse;
 import com.petcare.backend.dto.post.response.CommentMediaResponse;
+import com.petcare.backend.dto.post.response.PetSummaryResponse;
 import com.petcare.backend.dto.post.response.PostMediaResponse;
 import com.petcare.backend.dto.post.response.PostResponse;
 import com.petcare.backend.dto.post.response.ReactionSummaryResponse;
@@ -15,6 +16,7 @@ public interface PostMapper {
     PostResponse toPostResponse(
             Post post,
             List<PostMedia> media,
+            List<PetSummaryResponse> pets,
             ReactionSummaryResponse reactions,
             long commentCount,
             Long currentUserId

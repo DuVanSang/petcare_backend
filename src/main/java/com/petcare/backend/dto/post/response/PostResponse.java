@@ -18,7 +18,7 @@ public class PostResponse {
     private Long userId;
     private String authorName;
     private String authorAvatarUrl;
-    private Long petId;
+    private List<PetSummaryResponse> pets;
     private String caption;
     private String privacy;
     private String status;

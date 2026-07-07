@@ -1,6 +1,7 @@
 package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.post.response.CommentMediaResponse;
+import com.petcare.backend.dto.post.response.PetSummaryResponse;
 import com.petcare.backend.dto.post.response.PostCommentResponse;
 import com.petcare.backend.dto.post.response.PostMediaResponse;
 import com.petcare.backend.dto.post.response.PostResponse;
@@ -24,6 +25,7 @@ public class PostMapperImpl implements PostMapper {
     public PostResponse toPostResponse(
             Post post,
             List<PostMedia> media,
+            List<PetSummaryResponse> pets,
             ReactionSummaryResponse reactions,
             long commentCount,
             Long currentUserId
@@ -38,7 +40,7 @@ public class PostMapperImpl implements PostMapper {
                 .userId(authorId)
                 .authorName(resolveAuthorName(author))
                 .authorAvatarUrl(author == null ? null : author.getAvatarUrl())
-                .petId(post.getPetId())
+                .pets(pets == null ? Collections.emptyList() : pets)
                 .caption(post.getCaption())
                 .privacy(post.getPrivacy() == null ? null : post.getPrivacy().getValue())
                 .status(post.getStatus() == null ? null : post.getStatus().getValue())

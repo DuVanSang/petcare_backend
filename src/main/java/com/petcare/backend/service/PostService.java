@@ -4,6 +4,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.post.request.CreatePostRequest;
 import com.petcare.backend.dto.post.request.UpdatePostRequest;
 import com.petcare.backend.dto.post.response.PostResponse;
+import com.petcare.backend.model.Post;
 import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,6 +28,8 @@ public interface PostService {
     PageResponse<PostResponse> getUserPosts(Long profileUserId, Long currentUserId, int page, int size);
 
     PageResponse<PostResponse> getPetPosts(Long petId, Long currentUserId, int page, int size);
+
+    PostResponse buildPostResponse(Post post, Long currentUserId);
 
     PostResponse updatePost(Long postId, UpdatePostRequest request, Long currentUserId);
 

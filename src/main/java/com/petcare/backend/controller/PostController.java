@@ -6,6 +6,7 @@ import com.petcare.backend.dto.post.request.CreatePostRequest;
 import com.petcare.backend.dto.post.request.UpdatePostRequest;
 import com.petcare.backend.dto.post.response.PostResponse;
 import com.petcare.backend.security.UserPrincipal;
+import com.petcare.backend.service.PostSaveService;
 import com.petcare.backend.service.PostService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class PostController {
     private final PostService postService;
+    private final PostSaveService postSaveService;
 
     @PostMapping(value = "/posts", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
@@ -61,17 +63,6 @@ public class PostController {
                 .body(ApiResponse.success("Post created successfully", response));
     }
 
-    @GetMapping("/posts/{postId}")
-    public ResponseEntity<ApiResponse<PostResponse>> getPostById(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long postId
-    ) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Post retrieved successfully",
-                postService.getPostById(postId, principal.getId())
-        ));
-    }
-
     @GetMapping("/posts")
     public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> getPublicPosts(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -93,6 +84,29 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Posts retrieved successfully",
                 postService.getMyPosts(principal.getId(), page, size)
+        ));
+    }
+
+    @GetMapping("/posts/saved")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> getSavedPosts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Saved posts retrieved successfully",
+                postSaveService.getSavedPosts(principal, page, size)
+        ));
+    }
+
+    @GetMapping("/posts/{postId}")
+    public ResponseEntity<ApiResponse<PostResponse>> getPostById(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Post retrieved successfully",
+                postService.getPostById(postId, principal.getId())
         ));
     }
 
@@ -153,5 +167,25 @@ public class PostController {
     ) {
         postService.deletePost(postId, principal.getId());
         return ResponseEntity.ok(ApiResponse.success("Post deleted successfully", null));
+    }
+
+    @PostMapping("/posts/{postId}/save")
+    public ResponseEntity<ApiResponse<PostResponse>> savePost(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Post saved successfully",
+                postSaveService.savePost(principal, postId)
+        ));
+    }
+
+    @DeleteMapping("/posts/{postId}/save")
+    public ResponseEntity<ApiResponse<Void>> unsavePost(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        postSaveService.unsavePost(principal, postId);
+        return ResponseEntity.ok(ApiResponse.success("Post unsaved successfully", null));
     }
 }

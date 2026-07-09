@@ -29,6 +29,7 @@ public class PostResponse {
     private long commentCount;
     private boolean reactedByCurrentUser;
     private String currentUserReaction;
+    private Boolean savedByCurrentUser;
     private boolean canEdit;
     private boolean canDelete;
     private LocalDateTime createdAt;

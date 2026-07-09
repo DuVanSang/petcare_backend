@@ -28,6 +28,7 @@ public class PostMapperImpl implements PostMapper {
             List<PetSummaryResponse> pets,
             ReactionSummaryResponse reactions,
             long commentCount,
+            boolean savedByCurrentUser,
             Long currentUserId
     ) {
         User author = post.getUser();
@@ -51,6 +52,7 @@ public class PostMapperImpl implements PostMapper {
                 .commentCount(commentCount)
                 .reactedByCurrentUser(currentUserReaction != null)
                 .currentUserReaction(currentUserReaction)
+                .savedByCurrentUser(savedByCurrentUser)
                 .canEdit(owner)
                 .canDelete(owner)
                 .createdAt(post.getCreatedAt())

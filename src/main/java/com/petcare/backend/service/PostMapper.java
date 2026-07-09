@@ -19,6 +19,7 @@ public interface PostMapper {
             List<PetSummaryResponse> pets,
             ReactionSummaryResponse reactions,
             long commentCount,
+            boolean savedByCurrentUser,
             Long currentUserId
     );
 

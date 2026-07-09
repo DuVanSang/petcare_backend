@@ -29,6 +29,7 @@ import com.petcare.backend.repository.PostCommentRepository;
 import com.petcare.backend.repository.PostMediaRepository;
 import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
+import com.petcare.backend.repository.PostSaveRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.FriendService;
@@ -40,6 +41,7 @@ import com.petcare.backend.service.SocialPermissionService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +65,7 @@ public class PostServiceImpl implements PostService {
     private final PostMediaRepository postMediaRepository;
     private final PostReactionRepository postReactionRepository;
     private final PostCommentRepository postCommentRepository;
+    private final PostSaveRepository postSaveRepository;
     private final CommentMediaRepository commentMediaRepository;
     private final CommentReactionRepository commentReactionRepository;
     private final UserRepository userRepository;
@@ -413,14 +416,21 @@ public class PostServiceImpl implements PostService {
         return postMediaRepository.saveAll(media);
     }
 
-    private PostResponse buildPostResponse(Post post, Long currentUserId) {
-        return buildPostResponse(post, currentUserId, loadPetSummaries(List.of(post)));
+    @Override
+    public PostResponse buildPostResponse(Post post, Long currentUserId) {
+        return buildPostResponse(
+                post,
+                currentUserId,
+                loadPetSummaries(List.of(post)),
+                loadSavedPostIds(List.of(post), currentUserId)
+        );
     }
 
     private PostResponse buildPostResponse(
             Post post,
             Long currentUserId,
-            Map<Long, PetSummaryResponse> petSummaries
+            Map<Long, PetSummaryResponse> petSummaries,
+            Set<Long> savedPostIds
     ) {
         List<PostMedia> media = postMediaRepository.findByPost_IdOrderByDisplayOrderAsc(post.getId());
         ReactionSummaryResponse reactions = buildReactionSummary(post, currentUserId);
@@ -431,6 +441,7 @@ public class PostServiceImpl implements PostService {
                 buildPetResponses(post, petSummaries),
                 reactions,
                 commentCount,
+                savedPostIds.contains(post.getId()),
                 currentUserId
         );
         response.setComments(buildPostCommentResponses(post, currentUserId));
@@ -461,6 +472,24 @@ public class PostServiceImpl implements PostService {
                         .name(pet.getName())
                         .build())
                 .collect(Collectors.toMap(PetSummaryResponse::getId, Function.identity()));
+    }
+
+    private Set<Long> loadSavedPostIds(List<Post> posts, Long currentUserId) {
+        if (currentUserId == null || posts == null || posts.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> postIds = posts.stream()
+                .map(Post::getId)
+                .filter(postId -> postId != null)
+                .distinct()
+                .toList();
+        if (postIds.isEmpty()) {
+            return Set.of();
+        }
+        return postSaveRepository.findByUser_IdAndPost_IdIn(currentUserId, postIds)
+                .stream()
+                .map(postSave -> postSave.getPost().getId())
+                .collect(Collectors.toSet());
     }
 
     private ReactionSummaryResponse buildReactionSummary(Post post, Long currentUserId) {
@@ -552,9 +581,10 @@ public class PostServiceImpl implements PostService {
 
     private PageResponse<PostResponse> toPostPageResponse(Page<Post> posts, Long currentUserId) {
         Map<Long, PetSummaryResponse> petSummaries = loadPetSummaries(posts.getContent());
+        Set<Long> savedPostIds = loadSavedPostIds(posts.getContent(), currentUserId);
         List<PostResponse> content = posts.getContent()
                 .stream()
-                .map(post -> buildPostResponse(post, currentUserId, petSummaries))
+                .map(post -> buildPostResponse(post, currentUserId, petSummaries, savedPostIds))
                 .toList();
 
         return PageResponse.<PostResponse>builder()

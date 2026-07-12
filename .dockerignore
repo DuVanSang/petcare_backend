@@ -1,0 +1,10 @@
+target/
+.env
+.env.*
+!.env.example
+uploads/
+.idea/
+*.iml
+.git/
+cloudflared*.log
+*.log

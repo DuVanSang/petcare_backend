@@ -11,6 +11,7 @@ import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
 import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
 import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
 import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.response.OtpDeliveryResponse;
 import com.petcare.backend.dto.auth.response.RegisterResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.exception.BadRequestException;
@@ -70,6 +71,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.password-reset.otp-expiration-minutes:10}")
     private long passwordResetOtpExpirationMinutes;
 
+    @Value("${app.mail.dev-expose-otp:false}")
+    private boolean devExposeOtp;
+
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -90,9 +94,16 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
-        emailVerificationService.createAndSendOtp(savedUser);
+        String otpCode = emailVerificationService.createOtp(savedUser);
+        boolean emailSent = emailService.sendVerificationOtp(savedUser.getEmail(), otpCode);
 
-        return new RegisterResponse(savedUser.getId(), savedUser.getEmail(), savedUser.getEmailVerified());
+        return new RegisterResponse(
+                savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getEmailVerified(),
+                emailSent,
+                resolveDevOtp(emailSent, otpCode)
+        );
     }
 
     @Override
@@ -114,7 +125,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void resendVerificationCode(ResendVerificationRequest request) {
+    public OtpDeliveryResponse resendVerificationCode(ResendVerificationRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
                 .orElseThrow(() -> new BadRequestException("Email không tồn tại"));
 
@@ -122,7 +133,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Email đã được xác thực");
         }
 
-        emailVerificationService.createAndSendOtp(user);
+        String otpCode = emailVerificationService.createOtp(user);
+        boolean emailSent = emailService.sendVerificationOtp(user.getEmail(), otpCode);
+        return buildOtpDelivery(emailSent, otpCode);
     }
 
     @Override
@@ -254,10 +267,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void forgotPassword(ForgotPasswordRequest request) {
-        userRepository.findByEmail(normalizeEmail(request.getEmail()))
+    public OtpDeliveryResponse forgotPassword(ForgotPasswordRequest request) {
+        return userRepository.findByEmail(normalizeEmail(request.getEmail()))
                 .filter(user -> "active".equalsIgnoreCase(user.getStatus()))
-                .ifPresent(user -> {
+                .map(user -> {
                     invalidateActivePasswordResetTokens(user.getId());
 
                     PasswordResetToken token = new PasswordResetToken();
@@ -266,8 +279,10 @@ public class AuthServiceImpl implements AuthService {
                     token.setExpiresAt(LocalDateTime.now().plusMinutes(passwordResetOtpExpirationMinutes));
                     passwordResetTokenRepository.save(token);
 
-                    emailService.sendPasswordResetOtp(user.getEmail(), token.getOtpCode());
-                });
+                    boolean emailSent = emailService.sendPasswordResetOtp(user.getEmail(), token.getOtpCode());
+                    return buildOtpDelivery(emailSent, token.getOtpCode());
+                })
+                .orElseGet(() -> new OtpDeliveryResponse(false, null));
     }
 
     @Override
@@ -385,5 +400,16 @@ public class AuthServiceImpl implements AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+
+    private OtpDeliveryResponse buildOtpDelivery(boolean emailSent, String otpCode) {
+        return new OtpDeliveryResponse(emailSent, resolveDevOtp(emailSent, otpCode));
+    }
+
+    private String resolveDevOtp(boolean emailSent, String otpCode) {
+        if (emailSent || !devExposeOtp) {
+            return null;
+        }
+        return otpCode;
     }
 }

@@ -1,5 +1,6 @@
 package com.petcare.backend.controller;
 
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
@@ -93,6 +94,16 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách thiết bị thành công",
                 userService.getMyDevices(principal)
+        ));
+    }
+
+    @PostMapping("/me/devices")
+    public ResponseEntity<ApiResponse<UserDeviceResponse>> registerDevice(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DeviceInfoRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đăng ký thiết bị thành công",
+                userService.registerDevice(principal, request)
         ));
     }
 

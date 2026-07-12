@@ -10,6 +10,7 @@ import com.petcare.backend.dto.auth.request.ResendVerificationRequest;
 import com.petcare.backend.dto.auth.request.ResetPasswordRequest;
 import com.petcare.backend.dto.auth.request.VerifyEmailRequest;
 import com.petcare.backend.dto.auth.response.AuthResponse;
+import com.petcare.backend.dto.auth.response.OtpDeliveryResponse;
 import com.petcare.backend.dto.auth.response.RegisterResponse;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.service.AuthService;
@@ -30,11 +31,12 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
+        RegisterResponse result = authService.register(request);
+        String message = result.getDevOtp() != null
+                ? "Đăng ký thành công. Không gửi được email, vui lòng dùng mã OTP hiển thị trên màn hình"
+                : "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP";
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(
-                        "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP",
-                        authService.register(request)
-                ));
+                .body(ApiResponse.success(message, result));
     }
 
     @PostMapping("/verify-email")
@@ -43,10 +45,13 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification-code")
-    public ResponseEntity<ApiResponse<Void>> resendVerificationCode(
+    public ResponseEntity<ApiResponse<OtpDeliveryResponse>> resendVerificationCode(
             @Valid @RequestBody ResendVerificationRequest request) {
-        authService.resendVerificationCode(request);
-        return ResponseEntity.ok(ApiResponse.success("Đã gửi lại mã OTP", null));
+        OtpDeliveryResponse delivery = authService.resendVerificationCode(request);
+        String message = delivery.isEmailSent()
+                ? "Đã gửi lại mã OTP"
+                : "Không gửi được email, vui lòng dùng mã OTP hiển thị trên màn hình";
+        return ResponseEntity.ok(ApiResponse.success(message, delivery));
     }
 
     @PostMapping("/login")
@@ -71,12 +76,13 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success(
-                "Nếu email tồn tại và tài khoản đang hoạt động, mã OTP đặt lại mật khẩu sẽ được gửi đến email của bạn",
-                null
-        ));
+    public ResponseEntity<ApiResponse<OtpDeliveryResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        OtpDeliveryResponse delivery = authService.forgotPassword(request);
+        String message = delivery.getDevOtp() != null
+                ? "Không gửi được email, vui lòng dùng mã OTP hiển thị trên màn hình"
+                : "Nếu email tồn tại và tài khoản đang hoạt động, mã OTP đặt lại mật khẩu sẽ được gửi đến email của bạn";
+        return ResponseEntity.ok(ApiResponse.success(message, delivery));
     }
 
     @PostMapping("/reset-password")

@@ -1,7 +1,12 @@
--- ============================================================
--- SEED DATA: Loài thú cưng (categories_species)
--- ============================================================
-INSERT IGNORE INTO categories_species (id, name, icon_url) VALUES
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+DELETE FROM categories_breeds;
+DELETE FROM categories_species;
+ALTER TABLE categories_breeds AUTO_INCREMENT = 1;
+ALTER TABLE categories_species AUTO_INCREMENT = 1;
+SET FOREIGN_KEY_CHECKS = 1;
+
+INSERT INTO categories_species (id, name, icon_url) VALUES
 (1, 'Chó', NULL),
 (2, 'Mèo', NULL),
 (3, 'Chim', NULL),
@@ -11,10 +16,7 @@ INSERT IGNORE INTO categories_species (id, name, icon_url) VALUES
 (7, 'Bò sát', NULL),
 (8, 'Khác', NULL);
 
--- ============================================================
--- SEED DATA: Giống chó (categories_breeds) - species_id = 1
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+INSERT INTO categories_breeds (species_id, name) VALUES
 (1, 'Labrador Retriever'),
 (1, 'Golden Retriever'),
 (1, 'Poodle'),
@@ -35,12 +37,7 @@ INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
 (1, 'Yorkshire Terrier'),
 (1, 'Phú Quốc Ridgeback'),
 (1, 'Chó ta (Nội địa)'),
-(1, 'Hỗn hợp / Không rõ');
-
--- ============================================================
--- SEED DATA: Giống mèo (categories_breeds) - species_id = 2
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(1, 'Hỗn hợp / Không rõ'),
 (2, 'Anh lông ngắn (British Shorthair)'),
 (2, 'Ba Tư (Persian)'),
 (2, 'Scottish Fold'),
@@ -51,12 +48,7 @@ INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
 (2, 'Sphinx'),
 (2, 'Russian Blue'),
 (2, 'Mèo ta (Nội địa)'),
-(2, 'Hỗn hợp / Không rõ');
-
--- ============================================================
--- SEED DATA: Giống chim (categories_breeds) - species_id = 3
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(2, 'Hỗn hợp / Không rõ'),
 (3, 'Vẹt đuôi dài (Budgerigar)'),
 (3, 'Vẹt Cockatiel'),
 (3, 'Vẹt Cockatoo'),
@@ -64,46 +56,26 @@ INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
 (3, 'Chim sẻ'),
 (3, 'Chim yến'),
 (3, 'Chim cú'),
-(3, 'Khác');
-
--- ============================================================
--- SEED DATA: Giống thỏ (categories_breeds) - species_id = 4
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(3, 'Khác'),
 (4, 'Holland Lop'),
 (4, 'Netherland Dwarf'),
 (4, 'Mini Rex'),
 (4, 'Lionhead'),
 (4, 'Flemish Giant'),
 (4, 'Thỏ nội địa'),
-(4, 'Hỗn hợp / Không rõ');
-
--- ============================================================
--- SEED DATA: Giống hamster (categories_breeds) - species_id = 5
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(4, 'Hỗn hợp / Không rõ'),
 (5, 'Syrian (Gấu vàng)'),
 (5, 'Roborovski'),
 (5, 'Campbell'),
 (5, 'Winter White'),
-(5, 'Chinese');
-
--- ============================================================
--- SEED DATA: Giống cá (categories_breeds) - species_id = 6
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
+(5, 'Chinese'),
+(5, 'Hỗn hợp / Không rõ'),
 (6, 'Cá betta'),
 (6, 'Cá vàng (Goldfish)'),
 (6, 'Cá Koi'),
 (6, 'Cá La Hán'),
 (6, 'Cá Neon Tetra'),
 (6, 'Cá thần tiên (Angelfish)'),
-(6, 'Khác');
-
--- ============================================================
--- Giống cho loài còn thiếu mục "Khác"
--- ============================================================
-INSERT IGNORE INTO categories_breeds (species_id, name) VALUES
-(5, 'Hỗn hợp / Không rõ'),
+(6, 'Khác'),
 (7, 'Khác'),
 (8, 'Khác');

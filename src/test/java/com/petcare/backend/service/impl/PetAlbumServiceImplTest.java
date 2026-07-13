@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +28,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -187,6 +189,12 @@ class PetAlbumServiceImplTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getSize()).isEqualTo(50); // Should be trimmed to MAX_PAGE_SIZE
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(postMediaRepository).findVisiblePetAlbumImages(
+                eq(1L), eq(1L), eq(PostStatus.PUBLISHED), eq(MediaType.IMAGE),
+                eq(PostPrivacy.PUBLIC), eq(PostPrivacy.FRIENDS), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
     }
 
     // BVA: page = -1 (giá trị biên dưới không hợp lệ)
@@ -198,6 +206,9 @@ class PetAlbumServiceImplTest {
         assertThatThrownBy(() -> service.getPetAlbumImages(1L, 1L, -1, 30))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Page must not be negative");
+
+        verify(postMediaRepository, never()).findVisiblePetAlbumImages(
+                any(), any(), any(), any(), any(), any(), any(Pageable.class));
     }
 
     // BVA: size = 0 (giá trị biên dưới không hợp lệ)
@@ -209,6 +220,9 @@ class PetAlbumServiceImplTest {
         assertThatThrownBy(() -> service.getPetAlbumImages(1L, 1L, 0, 0))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Size must be greater than 0");
+
+        verify(postMediaRepository, never()).findVisiblePetAlbumImages(
+                any(), any(), any(), any(), any(), any(), any(Pageable.class));
     }
 
     // BVA: size = -1 (giá trị biên dưới không hợp lệ)
@@ -228,6 +242,8 @@ class PetAlbumServiceImplTest {
         assertThatThrownBy(() -> service.getPetAlbumImages(1L, null, 0, 30))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Pet id must be greater than 0");
+
+        verify(petRepository, never()).existsById(any());
     }
 
     // BVA: petId = 0 (giá trị biên không hợp lệ)
@@ -236,6 +252,8 @@ class PetAlbumServiceImplTest {
         assertThatThrownBy(() -> service.getPetAlbumImages(1L, 0L, 0, 30))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Pet id must be greater than 0");
+
+        verify(petRepository, never()).existsById(any());
     }
 
     // BVA: petId = -1 (giá trị biên không hợp lệ)
@@ -293,6 +311,44 @@ class PetAlbumServiceImplTest {
         assertThat(result).isNotNull();
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isEqualTo(0);
+    }
+
+    // EP: optional media/post/owner fields can be null and should be mapped as null.
+    @Test
+    void getPetAlbumImages_WithNullableMediaFields_ReturnsNullOptionalFields() {
+        Post postWithoutOptionalFields = new Post();
+        postWithoutOptionalFields.setId(2L);
+        postWithoutOptionalFields.setPetId(1L);
+        postWithoutOptionalFields.setUser(null);
+        postWithoutOptionalFields.setPrivacy(null);
+        postWithoutOptionalFields.setCreatedAt(LocalDateTime.now());
+
+        PostMedia mediaWithoutOptionalFields = new PostMedia();
+        mediaWithoutOptionalFields.setId(2L);
+        mediaWithoutOptionalFields.setPost(postWithoutOptionalFields);
+        mediaWithoutOptionalFields.setMediaType(null);
+
+        Page<PostMedia> page = new PageImpl<>(
+                Collections.singletonList(mediaWithoutOptionalFields),
+                PageRequest.of(0, 30),
+                1
+        );
+
+        doNothing().when(socialPermissionService).checkUserActive(1L);
+        when(petRepository.existsById(1L)).thenReturn(true);
+        when(postMediaRepository.findVisiblePetAlbumImages(
+                eq(1L), eq(1L), eq(PostStatus.PUBLISHED), eq(MediaType.IMAGE),
+                eq(PostPrivacy.PUBLIC), eq(PostPrivacy.FRIENDS), any(Pageable.class)))
+                .thenReturn(page);
+
+        PageResponse<PetAlbumMediaResponse> result = service.getPetAlbumImages(1L, 1L, 0, 30);
+
+        PetAlbumMediaResponse response = result.getContent().get(0);
+        assertThat(response.getMediaType()).isNull();
+        assertThat(response.getPostPrivacy()).isNull();
+        assertThat(response.getPostOwnerId()).isNull();
+        assertThat(response.getPostOwnerName()).isNull();
+        assertThat(response.getPostOwnerAvatarUrl()).isNull();
     }
 
     // EP: petId lớn

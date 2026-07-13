@@ -167,4 +167,26 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<id>petalbum-coverage</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<configuration>
+							<includes>
+								<include>com/petcare/backend/controller/PetAlbumController.class</include>
+								<include>com/petcare/backend/service/PetAlbumService.class</include>
+								<include>com/petcare/backend/service/impl/PetAlbumServiceImpl.class</include>
+								<include>com/petcare/backend/dto/pet/response/PetAlbumMediaResponse*.class</include>
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

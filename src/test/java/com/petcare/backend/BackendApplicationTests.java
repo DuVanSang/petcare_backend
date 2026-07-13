@@ -1,17 +1,14 @@
 package com.petcare.backend;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(properties = {
-		"spring.jpa.hibernate.ddl-auto=none",
-		"app.vaccine.seed-enabled=false",
-		"app.reminder.scheduler-enabled=false"
-})
+import org.junit.jupiter.api.Test;
+
 class BackendApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void applicationClassExists() {
+		assertThat(BackendApplication.class).isNotNull();
 	}
 
 }

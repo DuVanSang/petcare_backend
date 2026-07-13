@@ -668,7 +668,7 @@ CREATE TABLE `health_logs` (
   `pet_id` BIGINT UNSIGNED NOT NULL,
   `logged_date` DATE NOT NULL,
   `appetite` ENUM('normal', 'poor', 'no_food', 'excessive') NOT NULL DEFAULT 'normal',
-  `activity_level` ENUM('low', 'moderate', 'high', 'lethargic') NOT NULL DEFAULT 'moderate',
+  `activity_level` ENUM('very_active', 'active', 'moderate', 'low') NOT NULL DEFAULT 'moderate',
   `abnormal_event` TEXT NULL,
   `treatment_notes` TEXT NULL,
   `logged_by` BIGINT UNSIGNED NOT NULL,

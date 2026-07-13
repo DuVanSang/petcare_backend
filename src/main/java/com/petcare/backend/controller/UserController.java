@@ -1,5 +1,6 @@
 package com.petcare.backend.controller;
 
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
@@ -11,6 +12,7 @@ import com.petcare.backend.service.UserService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,7 +22,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -43,6 +47,26 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật hồ sơ thành công",
                 userService.updateProfile(principal, request)
+        ));
+    }
+
+    @PatchMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật ảnh đại diện thành công",
+                userService.uploadAvatar(principal, file)
+        ));
+    }
+
+    @PatchMapping(value = "/me/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<UserResponse>> uploadCoverImage(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật ảnh bìa thành công",
+                userService.uploadCoverImage(principal, file)
         ));
     }
 
@@ -70,6 +94,16 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách thiết bị thành công",
                 userService.getMyDevices(principal)
+        ));
+    }
+
+    @PostMapping("/me/devices")
+    public ResponseEntity<ApiResponse<UserDeviceResponse>> registerDevice(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DeviceInfoRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đăng ký thiết bị thành công",
+                userService.registerDevice(principal, request)
         ));
     }
 

@@ -1,6 +1,18 @@
 package com.petcare.backend.exception;
 
 import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
+import com.petcare.backend.model.Blog;
+import com.petcare.backend.model.CareReminder;
+import com.petcare.backend.model.CareReminderLog;
+import com.petcare.backend.model.Pet;
+import com.petcare.backend.model.PetVaccination;
+import com.petcare.backend.model.SocialReport;
+import com.petcare.backend.model.VaccinationReminderLog;
+import com.petcare.backend.model.VaccineTemplate;
+import com.petcare.backend.model.enums.CommentStatus;
+import com.petcare.backend.model.enums.PostPrivacy;
+import com.petcare.backend.model.enums.PostStatus;
 import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +57,60 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == ReminderStatusFilter.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái lịch nhắc không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái blog không hợp lệ", null));
+        }
+        if ("category".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogCategory.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Danh mục blog không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == Pet.PetStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái thú cưng không hợp lệ", null));
+        }
+        if ("vaccinePlanStatus".equals(ex.getName()) && ex.getRequiredType() == Pet.VaccinePlanStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái kế hoạch tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == PetVaccination.VaccinationStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
+        }
+        if ("targetStage".equals(ex.getName()) && ex.getRequiredType() == VaccineTemplate.TargetStage.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn vaccine không hợp lệ", null));
+        }
+        if ("category".equals(ex.getName()) && ex.getRequiredType() == CareReminder.ReminderCategory.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Loại lịch nhắc không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == CareReminderLog.ReminderLogStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log lịch nhắc không hợp lệ", null));
+        }
+        if ("stage".equals(ex.getName())
+                && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStage.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn nhắc tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName())
+                && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log nhắc tiêm không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == PostStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bài viết không hợp lệ", null));
+        }
+        if ("privacy".equals(ex.getName()) && ex.getRequiredType() == PostPrivacy.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Quyền riêng tư bài viết không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == CommentStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bình luận không hợp lệ", null));
+        }
+        if ("status".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportStatus.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái báo cáo không hợp lệ", null));
+        }
+        if ("targetType".equals(ex.getName())
+                && ex.getRequiredType() == SocialReport.ModerationTargetType.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Loại đối tượng báo cáo không hợp lệ", null));
+        }
+        if ("reason".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportReason.class) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Lý do báo cáo không hợp lệ", null));
+        }
         if ("status".equals(ex.getName())) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
         }

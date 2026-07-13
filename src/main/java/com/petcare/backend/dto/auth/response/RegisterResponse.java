@@ -9,4 +9,6 @@ public class RegisterResponse {
     private Long userId;
     private String email;
     private boolean emailVerified;
+    private boolean emailSent;
+    private String devOtp;
 }

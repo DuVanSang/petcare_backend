@@ -14,6 +14,7 @@ public class SpeciesResponse {
     private Long id;
     private String name;
     private String iconUrl;
+    private Boolean active;
     private List<BreedResponse> breeds;
 
     public static SpeciesResponse from(Species species) {
@@ -21,6 +22,7 @@ public class SpeciesResponse {
         dto.setId(species.getId());
         dto.setName(species.getName());
         dto.setIconUrl(species.getIconUrl());
+        dto.setActive(species.getActive());
         return dto;
     }
 
@@ -28,6 +30,7 @@ public class SpeciesResponse {
         SpeciesResponse dto = from(species);
         dto.setBreeds(
                 species.getBreeds().stream()
+                        .filter(breed -> Boolean.TRUE.equals(breed.getActive()))
                         .map(BreedResponse::from)
                         .collect(Collectors.toList())
         );

@@ -155,17 +155,24 @@ CREATE TABLE `co_parent_invitations` (
   `pet_id` bigint unsigned NOT NULL,
   `inviter_id` bigint unsigned NOT NULL,
   `invitee_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invitee_user_id` bigint unsigned DEFAULT NULL,
   `invite_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `role` enum('editor','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',
-  `status` enum('pending','accepted','expired','revoked') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `status` enum('pending','accepted','expired','revoked','declined') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `expires_at` timestamp NOT NULL,
+  `accepted_at` timestamp NULL DEFAULT NULL,
+  `declined_at` timestamp NULL DEFAULT NULL,
+  `revoked_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `invite_code` (`invite_code`),
   KEY `fk_invitations_pet` (`pet_id`),
   KEY `fk_invitations_inviter` (`inviter_id`),
+  KEY `idx_coparent_inv_invitee_status` (`invitee_user_id`,`status`),
   CONSTRAINT `fk_invitations_inviter` FOREIGN KEY (`inviter_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_invitations_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_invitations_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_coparent_inv_invitee_user` FOREIGN KEY (`invitee_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -257,8 +264,10 @@ CREATE TABLE `email_verification_tokens` (
   `expires_at` datetime(6) NOT NULL,
   `otp_code` varchar(10) NOT NULL,
   `used_at` datetime(6) DEFAULT NULL,
-  `user_id` bigint NOT NULL,
-  PRIMARY KEY (`id`)
+  `user_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKi1c4mmamlb8keqt74k4lrtwhc` (`user_id`),
+  CONSTRAINT `FKi1c4mmamlb8keqt74k4lrtwhc` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -345,7 +354,7 @@ CREATE TABLE `health_logs` (
   `pet_id` bigint unsigned NOT NULL,
   `logged_date` date NOT NULL,
   `appetite` enum('good','normal','poor') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
-  `activity_level` enum('low','moderate','high','lethargic') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'moderate',
+  `activity_level` enum('very_active','active','moderate','low') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'moderate',
   `abnormal_event` text COLLATE utf8mb4_unicode_ci,
   `treatment_notes` text COLLATE utf8mb4_unicode_ci,
   `logged_by` bigint unsigned NOT NULL,
@@ -371,6 +380,7 @@ CREATE TABLE `notifications` (
   `body` text NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `data` json DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
   `read_at` datetime(6) DEFAULT NULL,
   `scheduled_at` datetime(6) DEFAULT NULL,
   `sent_at` datetime(6) DEFAULT NULL,
@@ -378,10 +388,13 @@ CREATE TABLE `notifications` (
   `title` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
   `updated_at` datetime(6) NOT NULL,
-  `user_id` bigint unsigned NOT NULL,
+  `receiver_id` bigint unsigned NOT NULL,
+  `sender_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `FK9y21adhxn0ayjhfocscqox7bh` (`user_id`),
-  CONSTRAINT `FK9y21adhxn0ayjhfocscqox7bh` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `idx_notifications_receiver_created` (`receiver_id`,`created_at`),
+  KEY `idx_notifications_sender` (`sender_id`),
+  CONSTRAINT `fk_notifications_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_notifications_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -573,6 +586,54 @@ CREATE TABLE `pets` (
 -- Table structure for table `post_comments`
 --
 
+DROP TABLE IF EXISTS `moderation_actions`;
+DROP TABLE IF EXISTS `social_reports`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `social_reports` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `target_type` enum('post','comment') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_id` bigint unsigned NOT NULL,
+  `reporter_id` bigint unsigned NOT NULL,
+  `reason` enum('spam','harassment','inappropriate_content','misinformation','privacy_violation','other') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','reviewing','resolved','rejected') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `resolved_by` bigint unsigned DEFAULT NULL,
+  `resolution_note` text COLLATE utf8mb4_unicode_ci,
+  `resolved_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_social_reports_target` (`target_type`,`target_id`),
+  KEY `idx_social_reports_status_created` (`status`,`created_at`),
+  KEY `idx_social_reports_reporter` (`reporter_id`),
+  KEY `fk_social_reports_resolver` (`resolved_by`),
+  CONSTRAINT `fk_social_reports_reporter` FOREIGN KEY (`reporter_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_social_reports_resolver` FOREIGN KEY (`resolved_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `moderation_actions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `target_type` enum('post','comment') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_id` bigint unsigned NOT NULL,
+  `action` enum('hide','restore','resolve_report','reject_report') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` text COLLATE utf8mb4_unicode_ci,
+  `moderator_id` bigint unsigned NOT NULL,
+  `report_id` bigint unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_moderation_actions_target` (`target_type`,`target_id`),
+  KEY `idx_moderation_actions_moderator` (`moderator_id`),
+  KEY `idx_moderation_actions_created` (`created_at`),
+  KEY `fk_moderation_actions_report` (`report_id`),
+  CONSTRAINT `fk_moderation_actions_moderator` FOREIGN KEY (`moderator_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_moderation_actions_report` FOREIGN KEY (`report_id`) REFERENCES `social_reports` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 DROP TABLE IF EXISTS `post_comments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -726,9 +787,11 @@ CREATE TABLE `refresh_tokens` (
   `expires_at` datetime(6) NOT NULL,
   `revoked_at` datetime(6) DEFAULT NULL,
   `token` varchar(128) NOT NULL,
-  `user_id` bigint NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UKghpmfn23vmxfu3spu3lfg4r2d` (`token`)
+  UNIQUE KEY `UKghpmfn23vmxfu3spu3lfg4r2d` (`token`),
+  KEY `FK1lih5y2npsf8u5o3vhdb9y0os` (`user_id`),
+  CONSTRAINT `FK1lih5y2npsf8u5o3vhdb9y0os` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -878,6 +941,57 @@ CREATE TABLE `users` (
   KEY `idx_users_role_status` (`role`,`status`),
   KEY `idx_users_email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `blogs`
+--
+
+DROP TABLE IF EXISTS `blogs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `blogs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `author_id` bigint unsigned NOT NULL,
+  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(220) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `summary` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cover_image_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `category` enum('health','nutrition','training','grooming','vaccination') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('draft','published','archived') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `read_time_minutes` int NOT NULL DEFAULT '1',
+  `published_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_blogs_slug` (`slug`),
+  KEY `idx_blogs_status_published` (`status`,`published_at`),
+  KEY `idx_blogs_category_status` (`category`,`status`),
+  KEY `idx_blogs_author` (`author_id`),
+  CONSTRAINT `fk_blogs_author` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `blog_saves`
+--
+
+DROP TABLE IF EXISTS `blog_saves`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `blog_saves` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `blog_id` bigint unsigned NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_blog_saves_user_blog` (`user_id`,`blog_id`),
+  KEY `idx_blog_saves_user_created` (`user_id`,`created_at`),
+  KEY `idx_blog_saves_blog` (`blog_id`),
+  CONSTRAINT `fk_blog_saves_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_blog_saves_blog` FOREIGN KEY (`blog_id`) REFERENCES `blogs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

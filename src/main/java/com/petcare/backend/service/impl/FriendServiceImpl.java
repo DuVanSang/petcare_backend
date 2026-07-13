@@ -390,23 +390,29 @@ public class FriendServiceImpl implements FriendService {
 
     private void createFriendRequestNotification(User receiver, User sender, FriendRequest request) {
         Notification notification = new Notification();
-        notification.setUser(receiver);
+        notification.setReceiver(receiver);
+        notification.setSender(sender);
         notification.setTitle("Lời mời kết bạn");
         notification.setBody(resolveName(sender) + " đã gửi cho bạn lời mời kết bạn.");
         notification.setType("friend_request");
         notification.setData("{\"friendRequestId\":" + request.getId() + "}");
-        notification.setStatus("pending");
+        notification.setStatus("sent");
+        notification.setIsRead(false);
+        notification.setSentAt(LocalDateTime.now());
         notificationRepository.save(notification);
     }
 
     private void createFriendAcceptedNotification(User sender, User receiver, FriendRequest request) {
         Notification notification = new Notification();
-        notification.setUser(sender);
+        notification.setReceiver(sender);
+        notification.setSender(receiver);
         notification.setTitle("Lời mời kết bạn đã được chấp nhận");
         notification.setBody(resolveName(receiver) + " đã chấp nhận lời mời kết bạn của bạn.");
         notification.setType("friend_request_accepted");
         notification.setData("{\"friendRequestId\":" + request.getId() + "}");
-        notification.setStatus("pending");
+        notification.setStatus("sent");
+        notification.setIsRead(false);
+        notification.setSentAt(LocalDateTime.now());
         notificationRepository.save(notification);
     }
 

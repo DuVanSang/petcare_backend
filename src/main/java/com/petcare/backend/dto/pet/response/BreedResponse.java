@@ -13,6 +13,7 @@ public class BreedResponse {
     private Long id;
     private Long speciesId;
     private String name;
+    private Boolean active;
 
     @Schema(description = "true = mục \"Khác\" / \"Hỗn hợp / Không rõ\", UI cần hiện ô nhập giống tự do", example = "false")
     private boolean otherOption;
@@ -22,6 +23,7 @@ public class BreedResponse {
         dto.setId(breed.getId());
         dto.setSpeciesId(breed.getSpecies().getId());
         dto.setName(breed.getName());
+        dto.setActive(breed.getActive());
         dto.setOtherOption(BreedCategoryHelper.isOtherBreed(breed.getName()));
         return dto;
     }

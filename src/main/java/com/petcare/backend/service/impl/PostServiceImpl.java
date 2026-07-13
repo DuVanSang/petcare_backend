@@ -4,6 +4,7 @@ import com.petcare.backend.dto.common.PageResponse;
 import com.petcare.backend.dto.post.request.CreatePostMediaRequest;
 import com.petcare.backend.dto.post.request.CreatePostRequest;
 import com.petcare.backend.dto.post.request.UpdatePostRequest;
+import com.petcare.backend.dto.post.response.PetSummaryResponse;
 import com.petcare.backend.dto.post.response.PostCommentResponse;
 import com.petcare.backend.dto.post.response.PostResponse;
 import com.petcare.backend.dto.post.response.ReactionSummaryResponse;
@@ -11,6 +12,7 @@ import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.CommentMedia;
+import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.Post;
 import com.petcare.backend.model.PostComment;
 import com.petcare.backend.model.PostMedia;
@@ -27,14 +29,21 @@ import com.petcare.backend.repository.PostCommentRepository;
 import com.petcare.backend.repository.PostMediaRepository;
 import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
+import com.petcare.backend.repository.PostSaveRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.FriendService;
+import com.petcare.backend.service.PetTagPermissionService;
+import com.petcare.backend.service.PetTimelineService;
 import com.petcare.backend.service.PostMapper;
 import com.petcare.backend.service.PostService;
 import com.petcare.backend.service.SocialPermissionService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -56,6 +65,7 @@ public class PostServiceImpl implements PostService {
     private final PostMediaRepository postMediaRepository;
     private final PostReactionRepository postReactionRepository;
     private final PostCommentRepository postCommentRepository;
+    private final PostSaveRepository postSaveRepository;
     private final CommentMediaRepository commentMediaRepository;
     private final CommentReactionRepository commentReactionRepository;
     private final UserRepository userRepository;
@@ -63,12 +73,15 @@ public class PostServiceImpl implements PostService {
     private final FriendService friendService;
     private final PostMapper postMapper;
     private final SocialPermissionService socialPermissionService;
+    private final PetTagPermissionService petTagPermissionService;
+    private final PetTimelineService petTimelineService;
 
     @Override
     @Transactional
     public PostResponse createPost(CreatePostRequest request, Long currentUserId) {
         User currentUser = getCurrentActiveUser(currentUserId);
         validateCreatePostRequest(request);
+        Pet taggedPet = petTagPermissionService.validateAndGetTaggablePet(currentUserId, request.getPetId());
 
         Post post = Post.builder()
                 .user(currentUser)
@@ -81,6 +94,9 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
         createPostMedia(savedPost, request.getMedia());
+        if (taggedPet != null) {
+            petTimelineService.createSocialPostEvent(taggedPet, savedPost);
+        }
         return buildPostResponse(savedPost, currentUserId);
     }
 
@@ -95,6 +111,7 @@ public class PostServiceImpl implements PostService {
     ) {
         User currentUser = getCurrentActiveUser(currentUserId);
         validateCreatePostWithFilesRequest(petId, caption, privacy, files);
+        Pet taggedPet = petTagPermissionService.validateAndGetTaggablePet(currentUserId, petId);
 
         List<UploadFileResponse> uploadedFiles = fileStorageService.storePostMediaFiles(files);
         // TODO: Clean up stored files if saving post/media metadata fails.
@@ -110,6 +127,9 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
         createPostMediaFromUploads(savedPost, uploadedFiles);
+        if (taggedPet != null) {
+            petTimelineService.createSocialPostEvent(taggedPet, savedPost);
+        }
         return buildPostResponse(savedPost, currentUserId);
     }
 
@@ -183,7 +203,9 @@ public class PostServiceImpl implements PostService {
     public PageResponse<PostResponse> getPetPosts(Long petId, Long currentUserId, int page, int size) {
         validatePositiveId(petId, "Pet id");
         socialPermissionService.checkUserActive(currentUserId);
-        // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+        if (!petRepository.existsById(petId)) {
+            throw new ResourceNotFoundException("Pet not found");
+        }
 
         Pageable pageable = buildPageable(page, size);
         Page<Post> posts = postRepository.findVisiblePetPosts(
@@ -216,8 +238,8 @@ public class PostServiceImpl implements PostService {
             post.setCommentsLocked(request.getCommentsLocked());
         }
         if (request.isPetIdSet()) {
-            validatePetIdIfPresent(request.getPetId());
-            // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+            petTagPermissionService.validateAndGetTaggablePet(currentUserId, request.getPetId());
+            // TODO: Business rule for removing or moving old social_post timeline events can be clarified later.
             post.setPetId(request.getPetId());
         }
 
@@ -273,7 +295,7 @@ public class PostServiceImpl implements PostService {
             throw new BadRequestException("Privacy is required");
         }
         parsePostPrivacy(request.getPrivacy());
-        validatePetIdIfPresent(request.getPetId());
+        validatePetIdShapeIfPresent(request.getPetId());
         validateMediaList(request.getMedia());
 
         if (isBlank(request.getCaption()) && (request.getMedia() == null || request.getMedia().isEmpty())) {
@@ -291,8 +313,7 @@ public class PostServiceImpl implements PostService {
             throw new BadRequestException("Privacy is required");
         }
         parsePostPrivacy(privacy);
-        validatePetIdIfPresent(petId);
-        // TODO: Check Pet existence, active status, and owner/co-editor permission after Pet module exists.
+        validatePetIdShapeIfPresent(petId);
 
         if (files != null && files.size() > MAX_MEDIA_PER_POST) {
             throw new BadRequestException("A post can contain at most 10 media items");
@@ -311,7 +332,7 @@ public class PostServiceImpl implements PostService {
             parsePostPrivacy(request.getPrivacy());
         }
         if (request.isPetIdSet()) {
-            validatePetIdIfPresent(request.getPetId());
+            validatePetIdShapeIfPresent(request.getPetId());
         }
         validateMediaList(request.getMedia());
 
@@ -395,13 +416,80 @@ public class PostServiceImpl implements PostService {
         return postMediaRepository.saveAll(media);
     }
 
-    private PostResponse buildPostResponse(Post post, Long currentUserId) {
+    @Override
+    public PostResponse buildPostResponse(Post post, Long currentUserId) {
+        return buildPostResponse(
+                post,
+                currentUserId,
+                loadPetSummaries(List.of(post)),
+                loadSavedPostIds(List.of(post), currentUserId)
+        );
+    }
+
+    private PostResponse buildPostResponse(
+            Post post,
+            Long currentUserId,
+            Map<Long, PetSummaryResponse> petSummaries,
+            Set<Long> savedPostIds
+    ) {
         List<PostMedia> media = postMediaRepository.findByPost_IdOrderByDisplayOrderAsc(post.getId());
         ReactionSummaryResponse reactions = buildReactionSummary(post, currentUserId);
         long commentCount = countVisibleComments(post);
-        PostResponse response = postMapper.toPostResponse(post, media, reactions, commentCount, currentUserId);
+        PostResponse response = postMapper.toPostResponse(
+                post,
+                media,
+                buildPetResponses(post, petSummaries),
+                reactions,
+                commentCount,
+                savedPostIds.contains(post.getId()),
+                currentUserId
+        );
         response.setComments(buildPostCommentResponses(post, currentUserId));
         return response;
+    }
+
+    private List<PetSummaryResponse> buildPetResponses(Post post, Map<Long, PetSummaryResponse> petSummaries) {
+        if (post.getPetId() == null || petSummaries == null) {
+            return List.of();
+        }
+        PetSummaryResponse pet = petSummaries.get(post.getPetId());
+        return pet == null ? List.of() : List.of(pet);
+    }
+
+    private Map<Long, PetSummaryResponse> loadPetSummaries(List<Post> posts) {
+        List<Long> petIds = posts.stream()
+                .map(Post::getPetId)
+                .filter(petId -> petId != null)
+                .distinct()
+                .toList();
+        if (petIds.isEmpty()) {
+            return Map.of();
+        }
+        return petRepository.findAllById(petIds)
+                .stream()
+                .map(pet -> PetSummaryResponse.builder()
+                        .id(pet.getId())
+                        .name(pet.getName())
+                        .build())
+                .collect(Collectors.toMap(PetSummaryResponse::getId, Function.identity()));
+    }
+
+    private Set<Long> loadSavedPostIds(List<Post> posts, Long currentUserId) {
+        if (currentUserId == null || posts == null || posts.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> postIds = posts.stream()
+                .map(Post::getId)
+                .filter(postId -> postId != null)
+                .distinct()
+                .toList();
+        if (postIds.isEmpty()) {
+            return Set.of();
+        }
+        return postSaveRepository.findByUser_IdAndPost_IdIn(currentUserId, postIds)
+                .stream()
+                .map(postSave -> postSave.getPost().getId())
+                .collect(Collectors.toSet());
     }
 
     private ReactionSummaryResponse buildReactionSummary(Post post, Long currentUserId) {
@@ -492,9 +580,11 @@ public class PostServiceImpl implements PostService {
     }
 
     private PageResponse<PostResponse> toPostPageResponse(Page<Post> posts, Long currentUserId) {
+        Map<Long, PetSummaryResponse> petSummaries = loadPetSummaries(posts.getContent());
+        Set<Long> savedPostIds = loadSavedPostIds(posts.getContent(), currentUserId);
         List<PostResponse> content = posts.getContent()
                 .stream()
-                .map(post -> buildPostResponse(post, currentUserId))
+                .map(post -> buildPostResponse(post, currentUserId, petSummaries, savedPostIds))
                 .toList();
 
         return PageResponse.<PostResponse>builder()
@@ -529,15 +619,12 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    private void validatePetIdIfPresent(Long petId) {
+    private void validatePetIdShapeIfPresent(Long petId) {
         if (petId == null) {
             return;
         }
         if (petId <= 0) {
             throw new BadRequestException("Pet id must be greater than 0");
-        }
-        if (!petRepository.existsById(petId)) {
-            throw new ResourceNotFoundException("Pet not found");
         }
     }
 

@@ -10,6 +10,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,10 +21,12 @@ import lombok.Setter;
 @Table(name = "users",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
-                @UniqueConstraint(name = "uk_users_phone_number", columnNames = "phone_number")
+                @UniqueConstraint(name = "uk_users_phone_number", columnNames = "phone_number"),
+                @UniqueConstraint(name = "uk_users_username", columnNames = "username")
         },
         indexes = {
                 @Index(name = "idx_users_email", columnList = "email"),
+                @Index(name = "idx_users_username", columnList = "username"),
                 @Index(name = "idx_users_phone_number", columnList = "phone_number"),
                 @Index(name = "idx_users_role_status", columnList = "role,status"),
                 @Index(name = "idx_users_status_deleted_at", columnList = "status,deleted_at"),
@@ -44,11 +47,26 @@ public class User {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Column(length = 50)
+    private String username;
+
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
     @Column(name = "avatar_url")
     private String avatarUrl;
+
+    @Column(name = "cover_image_url")
+    private String coverImageUrl;
+
+    @Column(length = 150)
+    private String bio;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(length = 150)
+    private String location;
 
     @Column(name = "language_code", nullable = false, length = 10)
     private String languageCode = "vi";

@@ -1,0 +1,87 @@
+package com.petcare.backend.controller;
+
+import com.petcare.backend.dto.admin.user.request.AdminUpdateUserRoleRequest;
+import com.petcare.backend.dto.admin.user.request.AdminUpdateUserStatusRequest;
+import com.petcare.backend.dto.admin.user.response.AdminUserDetailResponse;
+import com.petcare.backend.dto.admin.user.response.AdminUserResponse;
+import com.petcare.backend.dto.common.ApiResponse;
+import com.petcare.backend.dto.common.PageResponse;
+import com.petcare.backend.security.UserPrincipal;
+import com.petcare.backend.service.AdminUserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/admin/users")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin - Users", description = "Quản lý người dùng")
+@SecurityRequirement(name = "bearerAuth")
+public class AdminUserController {
+    private final AdminUserService adminUserService;
+
+    @GetMapping
+    @Operation(summary = "Lấy danh sách người dùng")
+    public ResponseEntity<ApiResponse<PageResponse<AdminUserResponse>>> getUsers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean emailVerified,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách người dùng thành công",
+                adminUserService.getUsers(keyword, role, status, emailVerified, includeDeleted, page, size)
+        ));
+    }
+
+    @GetMapping("/{userId}")
+    @Operation(summary = "Xem chi tiết người dùng")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> getUserDetail(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy chi tiết người dùng thành công",
+                adminUserService.getUserDetail(userId)
+        ));
+    }
+
+    @PatchMapping("/{userId}/status")
+    @Operation(summary = "Cập nhật trạng thái người dùng")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> updateUserStatus(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long userId,
+            @Valid @RequestBody AdminUpdateUserStatusRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật trạng thái người dùng thành công",
+                adminUserService.updateUserStatus(principal, userId, request)
+        ));
+    }
+
+    @PatchMapping("/{userId}/role")
+    @Operation(summary = "Cập nhật vai trò người dùng")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> updateUserRole(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long userId,
+            @Valid @RequestBody AdminUpdateUserRoleRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật vai trò người dùng thành công",
+                adminUserService.updateUserRole(principal, userId, request)
+        ));
+    }
+}

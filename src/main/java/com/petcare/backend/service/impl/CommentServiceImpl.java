@@ -24,6 +24,7 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.CommentService;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.PostMapper;
+import com.petcare.backend.service.SocialNotificationService;
 import com.petcare.backend.service.SocialPermissionService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -53,6 +54,7 @@ public class CommentServiceImpl implements CommentService {
     private final FileStorageService fileStorageService;
     private final PostMapper postMapper;
     private final SocialPermissionService socialPermissionService;
+    private final SocialNotificationService socialNotificationService;
 
     @Override
     @Transactional
@@ -70,10 +72,11 @@ public class CommentServiceImpl implements CommentService {
         validateCommentInput(commentText, files);
 
         PostComment comment;
+        PostComment parent = null;
         if (parentCommentId == null) {
             comment = createRootComment(post, user, commentText);
         } else {
-            PostComment parent = getCommentOrThrow(parentCommentId);
+            parent = getCommentOrThrow(parentCommentId);
             validateParentComment(post, parent);
             comment = createReplyComment(post, user, parent, commentText);
         }
@@ -81,6 +84,15 @@ public class CommentServiceImpl implements CommentService {
         List<UploadFileResponse> uploadedFiles = fileStorageService.storeCommentMediaFiles(files);
         // TODO: Clean up stored comment files if saving media metadata fails.
         createCommentMedia(comment, uploadedFiles);
+        if (parent == null) {
+            socialNotificationService.notifyPostComment(post, comment, user);
+        } else {
+            socialNotificationService.notifyPostComment(post, comment, user);
+            if (parent.getUser() == null || post.getUser() == null
+                    || !parent.getUser().getId().equals(post.getUser().getId())) {
+                socialNotificationService.notifyCommentReply(parent, comment, user);
+            }
+        }
         return buildCommentResponse(comment, currentUserId);
     }
 

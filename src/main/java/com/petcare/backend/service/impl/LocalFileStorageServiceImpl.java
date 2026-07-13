@@ -52,6 +52,12 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Value("${app.upload.comment-media-dir:comment-media}")
     private String commentMediaDir;
 
+    @Value("${app.upload.pet-avatar-dir:pet-avatar}")
+    private String petAvatarDir;
+
+    @Value("${app.upload.user-profile-dir:user-profile}")
+    private String userProfileDir;
+
     @Value("${app.upload.max-file-size-mb:20}")
     private long maxFileSizeMb;
 
@@ -85,13 +91,51 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
                 .toList();
     }
 
+    @Override
+    public UploadFileResponse storePetAvatar(MultipartFile file, Long userId) {
+        validateProfileImage(file, "Ảnh đại diện thú cưng không hợp lệ");
+        return storeMediaFile(file, petAvatarDir, true);
+    }
+
+    @Override
+    public UploadFileResponse storeUserProfileImage(MultipartFile file, Long userId, String imageType) {
+        validateProfileImage(file, "Ảnh hồ sơ không hợp lệ");
+        String normalizedType = switch (imageType) {
+            case "avatar" -> "avatar";
+            case "cover" -> "cover";
+            default -> throw new BadRequestException("Loại ảnh hồ sơ không hợp lệ");
+        };
+        return storeMediaFile(file, userProfileDir + "/" + normalizedType, true);
+    }
+
+    @Override
+    public void deleteByUrl(String fileUrl) {
+        if (!StringUtils.hasText(fileUrl)) return;
+        String prefix = publicUrlPrefix.replaceAll("/+$", "") + "/";
+        if (!fileUrl.startsWith(prefix)) return;
+        Path root = Paths.get(uploadRootDir).toAbsolutePath().normalize();
+        Path target = root.resolve(fileUrl.substring(prefix.length()).replace('/', java.io.File.separatorChar)).normalize();
+        if (!target.startsWith(root)) return;
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Could not delete file", ex);
+        }
+    }
+
     private UploadFileResponse storeMediaFile(MultipartFile file, String mediaDirectory) {
+        return storeMediaFile(file, mediaDirectory, false);
+    }
+
+    private UploadFileResponse storeMediaFile(MultipartFile file, String mediaDirectory, boolean uuidOnly) {
         validateFile(file);
 
         String originalFilename = file.getOriginalFilename().trim();
         String mimeType = file.getContentType().toLowerCase(Locale.ROOT);
         String mediaType = SUPPORTED_MIME_TYPES.get(mimeType);
-        String storedFilename = UUID.randomUUID() + "-" + sanitizeFilename(originalFilename);
+        String storedFilename = uuidOnly
+                ? UUID.randomUUID() + safeImageExtension(mimeType)
+                : UUID.randomUUID() + "-" + sanitizeFilename(originalFilename);
 
         LocalDate now = LocalDate.now();
         String year = YEAR_FORMATTER.format(now);
@@ -123,6 +167,26 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
                 .mimeType(mimeType)
                 .fileSize(file.getSize())
                 .build();
+    }
+
+    private void validateProfileImage(MultipartFile file, String message) {
+        if (file == null || file.isEmpty() || file.getSize() > 5L * 1024 * 1024) {
+            throw new BadRequestException(message);
+        }
+        String mimeType = file.getContentType();
+        if (!StringUtils.hasText(mimeType)
+                || !List.of("image/jpeg", "image/png", "image/webp").contains(mimeType.toLowerCase(Locale.ROOT))) {
+            throw new BadRequestException(message);
+        }
+    }
+
+    private String safeImageExtension(String mimeType) {
+        return switch (mimeType) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> throw new BadRequestException("Ảnh hồ sơ không hợp lệ");
+        };
     }
 
     private void validateFile(MultipartFile file) {

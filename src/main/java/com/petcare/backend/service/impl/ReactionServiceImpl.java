@@ -19,7 +19,9 @@ import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.ReactionService;
+import com.petcare.backend.service.SocialNotificationService;
 import com.petcare.backend.service.SocialPermissionService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,7 @@ public class ReactionServiceImpl implements ReactionService {
     private final CommentReactionRepository commentReactionRepository;
     private final UserRepository userRepository;
     private final SocialPermissionService socialPermissionService;
+    private final SocialNotificationService socialNotificationService;
 
     @Override
     @Transactional
@@ -47,7 +50,8 @@ public class ReactionServiceImpl implements ReactionService {
         }
 
         ReactionType parsedReactionType = parseReactionType(reactionType);
-        PostReaction reaction = postReactionRepository.findByPost_IdAndUser_Id(postId, currentUserId)
+        Optional<PostReaction> existingReaction = postReactionRepository.findByPost_IdAndUser_Id(postId, currentUserId);
+        PostReaction reaction = existingReaction
                 .orElseGet(() -> PostReaction.builder()
                         .id(new PostReactionId(post.getId(), user.getId()))
                         .post(post)
@@ -55,6 +59,9 @@ public class ReactionServiceImpl implements ReactionService {
                         .build());
         reaction.setReactionType(parsedReactionType);
         postReactionRepository.save(reaction);
+        if (existingReaction.isEmpty()) {
+            socialNotificationService.notifyPostReaction(post, user, parsedReactionType.getValue());
+        }
         return buildPostReactionSummary(post, currentUserId);
     }
 
@@ -84,9 +91,16 @@ public class ReactionServiceImpl implements ReactionService {
         User user = getUserOrThrow(currentUserId);
         PostComment comment = getVisibleCommentOrThrow(commentId);
         socialPermissionService.checkCanViewPost(currentUserId, comment.getPost());
+        if (!PostStatus.PUBLISHED.equals(comment.getPost().getStatus())) {
+            throw new BadRequestException("Cannot react to comments on hidden or deleted post");
+        }
 
         ReactionType parsedReactionType = parseReactionType(reactionType);
-        CommentReaction reaction = commentReactionRepository.findByComment_IdAndUser_Id(commentId, currentUserId)
+        Optional<CommentReaction> existingReaction = commentReactionRepository.findByComment_IdAndUser_Id(
+                commentId,
+                currentUserId
+        );
+        CommentReaction reaction = existingReaction
                 .orElseGet(() -> CommentReaction.builder()
                         .id(new CommentReactionId(comment.getId(), user.getId()))
                         .comment(comment)
@@ -94,6 +108,7 @@ public class ReactionServiceImpl implements ReactionService {
                         .build());
         reaction.setReactionType(parsedReactionType);
         commentReactionRepository.save(reaction);
+        socialNotificationService.notifyCommentReaction(comment, user, parsedReactionType.getValue());
         return buildCommentReactionSummary(comment, currentUserId);
     }
 

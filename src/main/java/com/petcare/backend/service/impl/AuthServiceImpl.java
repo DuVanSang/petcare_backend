@@ -158,8 +158,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        upsertUserDevice(user, request.getDevice());
-
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
         return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
@@ -183,8 +181,6 @@ public class AuthServiceImpl implements AuthService {
         if ("banned".equalsIgnoreCase(user.getStatus())) {
             throw new BadRequestException("Tài khoản đã bị khóa");
         }
-
-        upsertUserDevice(user, request.getDevice());
 
         String accessToken = jwtService.generateToken(UserPrincipal.from(user));
         String refreshToken = createRefreshToken(user).getToken();

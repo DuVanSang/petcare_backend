@@ -21,6 +21,7 @@ import com.petcare.backend.repository.NotificationRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.FriendMapper;
 import com.petcare.backend.service.FriendService;
+import com.petcare.backend.service.PushNotificationSender;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class FriendServiceImpl implements FriendService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final FriendMapper friendMapper;
+    private final PushNotificationSender pushNotificationSender;
 
     @Override
     @Transactional
@@ -399,7 +401,8 @@ public class FriendServiceImpl implements FriendService {
         notification.setStatus("sent");
         notification.setIsRead(false);
         notification.setSentAt(LocalDateTime.now());
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationSender.send(saved);
     }
 
     private void createFriendAcceptedNotification(User sender, User receiver, FriendRequest request) {
@@ -413,7 +416,8 @@ public class FriendServiceImpl implements FriendService {
         notification.setStatus("sent");
         notification.setIsRead(false);
         notification.setSentAt(LocalDateTime.now());
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationSender.send(saved);
     }
 
     private String resolveName(User user) {

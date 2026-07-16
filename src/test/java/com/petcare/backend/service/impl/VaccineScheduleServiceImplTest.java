@@ -22,6 +22,7 @@ import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.PetTimelineEventRepository;
 import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.VaccineTemplateRepository;
+import com.petcare.backend.service.PushNotificationSender;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,8 @@ class VaccineScheduleServiceImplTest {
     private PetTimelineEventRepository timelineEventRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private PushNotificationSender pushNotificationSender;
 
     private VaccineScheduleServiceImpl service;
     private Pet pet;
@@ -55,6 +58,7 @@ class VaccineScheduleServiceImplTest {
                 petRepository,
                 timelineEventRepository,
                 notificationRepository,
+                pushNotificationSender,
                 new ObjectMapper()
         );
         Species species = new Species();

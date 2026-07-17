@@ -22,6 +22,7 @@ import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccineScheduleService;
 import com.petcare.backend.service.ReminderSynchronizationService;
+import com.petcare.backend.service.VaccinationSafetyService;
 import java.util.List;
 import java.util.Optional;
 import java.time.LocalDate;
@@ -50,6 +51,8 @@ class VaccinationServiceImplTest {
     @Mock
     private ReminderSynchronizationService reminderSynchronizationService;
     @Mock
+    private VaccinationSafetyService vaccinationSafetyService;
+    @Mock
     private UserPrincipal principal;
 
     private VaccinationServiceImpl service;
@@ -65,7 +68,8 @@ class VaccinationServiceImplTest {
                 userRepository,
                 vaccineTemplateRepository,
                 vaccineScheduleService,
-                reminderSynchronizationService
+                reminderSynchronizationService,
+                vaccinationSafetyService
         );
 
         User owner = new User();

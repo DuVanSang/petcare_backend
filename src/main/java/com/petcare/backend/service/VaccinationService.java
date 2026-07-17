@@ -8,6 +8,7 @@ import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
 import com.petcare.backend.dto.vaccination.response.VaccineOptionResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
+import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.security.UserPrincipal;
@@ -46,6 +47,8 @@ public interface VaccinationService {
     );
 
     VaccinationResponse getVaccination(UserPrincipal principal, Long petId, Long vaccinationId);
+
+    VaccinationSafetyWarningResponse checkSafety(UserPrincipal principal, Long petId, Long vaccinationId);
 
     VaccinationResponse completeVaccination(
             UserPrincipal principal,

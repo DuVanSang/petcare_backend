@@ -32,7 +32,7 @@ public class UserSocialAccount {
     private User user;
 
     @Convert(converter = SocialProviderConverter.class)
-    @Column(nullable = false, columnDefinition = "ENUM('google', 'apple')")
+    @Column(nullable = false, columnDefinition = "ENUM('google', 'firebase', 'apple')")
     private SocialProvider provider;
 
     @Column(name = "provider_user_id", nullable = false)

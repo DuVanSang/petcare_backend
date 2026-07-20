@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 public enum SocialProvider {
     GOOGLE("google"),
+    FIREBASE("firebase"),
     APPLE("apple");
 
     private final String value;

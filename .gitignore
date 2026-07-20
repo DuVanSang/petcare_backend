@@ -4,6 +4,9 @@ target/
 .env.*
 !.env.example
 .evn
+firebase-service-account*.json
+service-account*.json
+secrets/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

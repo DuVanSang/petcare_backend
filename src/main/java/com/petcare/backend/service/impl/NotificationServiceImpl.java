@@ -8,6 +8,7 @@ import com.petcare.backend.model.Notification;
 import com.petcare.backend.repository.NotificationRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.service.NotificationService;
+import com.petcare.backend.service.PushNotificationSender;
 import com.petcare.backend.service.SocialPermissionService;
 import java.time.LocalDateTime;
 import java.util.regex.Matcher;
@@ -28,6 +29,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final SocialPermissionService socialPermissionService;
     private final UserRepository userRepository;
+    private final PushNotificationSender pushNotificationSender;
 
     @Override
     @Transactional
@@ -43,7 +45,8 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setData(referenceId == null ? null : "{\"referenceId\":" + referenceId + "}");
         notification.setStatus("sent"); notification.setIsRead(false);
         notification.setSentAt(LocalDateTime.now());
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationSender.send(saved);
     }
 
     @Override

@@ -9,6 +9,7 @@ import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
 import com.petcare.backend.dto.vaccination.response.VaccineOptionResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
+import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.security.UserPrincipal;
@@ -108,6 +109,18 @@ public class VaccinationController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy thông tin mũi tiêm thành công",
                 vaccinationService.getVaccination(principal, petId, vaccinationId)
+        ));
+    }
+
+    @GetMapping("/{vaccinationId}/safety-check")
+    @Operation(summary = "Kiểm tra cảnh báo an toàn trước khi tiêm")
+    public ResponseEntity<ApiResponse<VaccinationSafetyWarningResponse>> checkSafety(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long vaccinationId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Kiểm tra cảnh báo an toàn thành công",
+                vaccinationService.checkSafety(principal, petId, vaccinationId)
         ));
     }
 

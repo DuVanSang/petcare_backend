@@ -1,6 +1,7 @@
 package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
+import com.petcare.backend.dto.auth.request.FirebaseLoginRequest;
 import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.GoogleLoginRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
@@ -14,6 +15,9 @@ import com.petcare.backend.dto.auth.response.AuthResponse;
 import com.petcare.backend.dto.auth.response.OtpDeliveryResponse;
 import com.petcare.backend.dto.auth.response.RegisterResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
@@ -33,6 +37,7 @@ import com.petcare.backend.service.EmailService;
 import com.petcare.backend.service.EmailVerificationService;
 import com.petcare.backend.service.GoogleTokenService;
 import com.petcare.backend.service.GoogleUserPayload;
+import org.springframework.beans.factory.ObjectProvider;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -64,6 +69,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailVerificationService emailVerificationService;
     private final EmailService emailService;
     private final GoogleTokenService googleTokenService;
+    private final ObjectProvider<FirebaseAuth> firebaseAuthProvider;
 
     @Value("${app.refresh-token.expiration-ms}")
     private long refreshTokenExpirationMs;
@@ -158,8 +164,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
         }
 
-        upsertUserDevice(user, request.getDevice());
-
         String accessToken = jwtService.generateToken(principal);
         String refreshToken = createRefreshToken(user).getToken();
         return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
@@ -184,7 +188,38 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Tài khoản đã bị khóa");
         }
 
-        upsertUserDevice(user, request.getDevice());
+        String accessToken = jwtService.generateToken(UserPrincipal.from(user));
+        String refreshToken = createRefreshToken(user).getToken();
+        return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse loginWithFirebase(FirebaseLoginRequest request) {
+        FirebaseAuth firebaseAuth = firebaseAuthProvider.getIfAvailable();
+        if (firebaseAuth == null) {
+            throw new BadRequestException("Firebase Auth chưa được cấu hình trên backend");
+        }
+
+        FirebaseToken token;
+        try {
+            token = firebaseAuth.verifyIdToken(request.getIdToken());
+        } catch (FirebaseAuthException ex) {
+            throw new BadRequestException("Firebase ID token không hợp lệ hoặc đã hết hạn");
+        }
+
+        String firebaseUid = token.getUid();
+        String email = token.getEmail() == null ? null : token.getEmail().trim().toLowerCase();
+        if (!StringUtils.hasText(email)) {
+            throw new BadRequestException("Không lấy được email từ Firebase Auth");
+        }
+
+        User user = userSocialAccountRepository
+                .findByProviderAndProviderUserId(SocialProvider.FIREBASE, firebaseUid)
+                .map(UserSocialAccount::getUser)
+                .orElseGet(() -> findOrCreateUserByFirebase(email, firebaseUid, token));
+
+        ensureActiveAccount(user);
 
         String accessToken = jwtService.generateToken(UserPrincipal.from(user));
         String refreshToken = createRefreshToken(user).getToken();
@@ -202,6 +237,47 @@ public class AuthServiceImpl implements AuthService {
 
         linkGoogleAccount(user, googleUserId);
         return user;
+    }
+
+    private User findOrCreateUserByFirebase(String email, String firebaseUid, FirebaseToken token) {
+        User user = userRepository.findByEmail(email).orElseGet(() -> createFirebaseUser(email, token));
+
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            user.setEmailVerified(true);
+            user.setEmailVerifiedAt(LocalDateTime.now());
+            user = userRepository.save(user);
+        }
+
+        linkFirebaseAccount(user, firebaseUid);
+        return user;
+    }
+
+    private User createFirebaseUser(String email, FirebaseToken token) {
+        User user = new User();
+        user.setEmail(email);
+        user.setFullName(resolveFirebaseFullName(token, email));
+        Object picture = token.getClaims().get("picture");
+        if (picture instanceof String pictureUrl && StringUtils.hasText(pictureUrl)) {
+            user.setAvatarUrl(pictureUrl);
+        }
+        user.setEmailVerified(true);
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        return userRepository.save(user);
+    }
+
+    private void linkFirebaseAccount(User user, String firebaseUid) {
+        boolean alreadyLinked = userSocialAccountRepository
+                .findByProviderAndProviderUserId(SocialProvider.FIREBASE, firebaseUid)
+                .isPresent();
+        if (alreadyLinked) {
+            return;
+        }
+
+        UserSocialAccount socialAccount = new UserSocialAccount();
+        socialAccount.setUser(user);
+        socialAccount.setProvider(SocialProvider.FIREBASE);
+        socialAccount.setProviderUserId(firebaseUid);
+        userSocialAccountRepository.save(socialAccount);
     }
 
     private User createGoogleUser(String email, GoogleUserPayload payload) {
@@ -231,6 +307,15 @@ public class AuthServiceImpl implements AuthService {
 
     private String resolveGoogleFullName(GoogleUserPayload payload, String email) {
         String name = payload.getName();
+        if (StringUtils.hasText(name)) {
+            return name.trim();
+        }
+        int atIndex = email.indexOf('@');
+        return atIndex > 0 ? email.substring(0, atIndex) : email;
+    }
+
+    private String resolveFirebaseFullName(FirebaseToken token, String email) {
+        String name = token.getName();
         if (StringUtils.hasText(name)) {
             return name.trim();
         }

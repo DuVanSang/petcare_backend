@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
 import com.petcare.backend.model.CareReminder;
 import com.petcare.backend.model.CareReminderLog;
 import com.petcare.backend.model.Notification;
@@ -26,6 +27,7 @@ import com.petcare.backend.repository.PetCoParentRepository;
 import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.VaccinationReminderLogRepository;
 import com.petcare.backend.service.PushNotificationSender;
+import com.petcare.backend.service.VaccinationSafetyService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -56,6 +58,8 @@ class ReminderEngineServiceImplTest {
     private NotificationRepository notificationRepository;
     @Mock
     private PushNotificationSender pushNotificationSender;
+    @Mock
+    private VaccinationSafetyService vaccinationSafetyService;
 
     private ReminderEngineServiceImpl service;
     private ReminderScheduleCalculator calculator;
@@ -72,12 +76,15 @@ class ReminderEngineServiceImplTest {
                 notificationRepository,
                 calculator,
                 pushNotificationSender,
+                vaccinationSafetyService,
                 new ObjectMapper()
         );
         ReflectionTestUtils.setField(service, "batchSize", 100);
         ReflectionTestUtils.setField(service, "vaccineNotificationTime", "00:00");
         lenient().when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(vaccinationSafetyService.evaluate(any(PetVaccination.class)))
+                .thenReturn(noSafetyWarning());
     }
 
     @Test
@@ -211,5 +218,15 @@ class ReminderEngineServiceImplTest {
         coParent.setUser(user);
         coParent.setRole(role);
         return coParent;
+    }
+
+    private VaccinationSafetyWarningResponse noSafetyWarning() {
+        return VaccinationSafetyWarningResponse.builder()
+                .warning(false)
+                .warningLevel(VaccinationSafetyWarningResponse.WarningLevel.none)
+                .title("Không phát hiện cảnh báo y tế")
+                .message("Không phát hiện cảnh báo y tế")
+                .reasons(List.of())
+                .build();
     }
 }

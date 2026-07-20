@@ -8,6 +8,7 @@ import com.petcare.backend.dto.vaccination.request.SetupVaccinationPlanRequest;
 import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
 import com.petcare.backend.dto.vaccination.response.VaccineOptionResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
+import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetCoParent;
@@ -23,6 +24,7 @@ import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.VaccinationService;
+import com.petcare.backend.service.VaccinationSafetyService;
 import com.petcare.backend.service.VaccineScheduleService;
 import com.petcare.backend.service.ReminderSynchronizationService;
 import java.time.LocalDate;
@@ -43,6 +45,7 @@ public class VaccinationServiceImpl implements VaccinationService {
     private final VaccineTemplateRepository vaccineTemplateRepository;
     private final VaccineScheduleService vaccineScheduleService;
     private final ReminderSynchronizationService reminderSynchronizationService;
+    private final VaccinationSafetyService vaccinationSafetyService;
 
     @Override
     @Transactional
@@ -166,7 +169,15 @@ public class VaccinationServiceImpl implements VaccinationService {
     @Transactional(readOnly = true)
     public VaccinationResponse getVaccination(UserPrincipal principal, Long petId, Long vaccinationId) {
         ensureCanView(principal, petId);
-        return VaccinationResponse.from(getVaccinationForPet(petId, vaccinationId));
+        PetVaccination vaccination = getVaccinationForPet(petId, vaccinationId);
+        return VaccinationResponse.from(vaccination, vaccinationSafetyService.evaluate(vaccination));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VaccinationSafetyWarningResponse checkSafety(UserPrincipal principal, Long petId, Long vaccinationId) {
+        ensureCanView(principal, petId);
+        return vaccinationSafetyService.evaluate(getVaccinationForPet(petId, vaccinationId));
     }
 
     @Override

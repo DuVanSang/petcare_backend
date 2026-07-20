@@ -35,6 +35,7 @@ public class VaccinationResponse {
     private Long confirmedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private VaccinationSafetyWarningResponse safetyWarning;
 
     public static VaccinationResponse from(PetVaccination vaccination) {
         VaccinationResponse response = new VaccinationResponse();
@@ -66,6 +67,14 @@ public class VaccinationResponse {
         response.setConfirmedBy(vaccination.getConfirmedBy() != null ? vaccination.getConfirmedBy().getId() : null);
         response.setCreatedAt(vaccination.getCreatedAt());
         response.setUpdatedAt(vaccination.getUpdatedAt());
+        return response;
+    }
+
+    public static VaccinationResponse from(
+            PetVaccination vaccination,
+            VaccinationSafetyWarningResponse safetyWarning) {
+        VaccinationResponse response = from(vaccination);
+        response.setSafetyWarning(safetyWarning);
         return response;
     }
 }

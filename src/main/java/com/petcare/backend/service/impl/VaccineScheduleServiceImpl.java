@@ -15,6 +15,7 @@ import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.PetTimelineEventRepository;
 import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.VaccineTemplateRepository;
+import com.petcare.backend.service.PushNotificationSender;
 import com.petcare.backend.service.VaccineScheduleService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,6 +42,7 @@ public class VaccineScheduleServiceImpl implements VaccineScheduleService {
     private final PetRepository petRepository;
     private final PetTimelineEventRepository timelineEventRepository;
     private final NotificationRepository notificationRepository;
+    private final PushNotificationSender pushNotificationSender;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -397,7 +399,8 @@ public class VaccineScheduleServiceImpl implements VaccineScheduleService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Không thể tạo dữ liệu thông báo vaccine", ex);
         }
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationSender.send(saved);
     }
 
     private void createScheduleAdjustedTimeline(PetVaccination completed, int adjustedCount) {

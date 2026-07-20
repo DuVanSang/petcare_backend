@@ -6,6 +6,7 @@ import com.petcare.backend.model.PostComment;
 import com.petcare.backend.model.User;
 import com.petcare.backend.model.enums.ReactionType;
 import com.petcare.backend.repository.NotificationRepository;
+import com.petcare.backend.service.PushNotificationSender;
 import com.petcare.backend.service.SocialNotificationService;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SocialNotificationServiceImpl implements SocialNotificationService {
     private final NotificationRepository notificationRepository;
+    private final PushNotificationSender pushNotificationSender;
 
     @Override
     @Transactional
@@ -119,7 +121,8 @@ public class SocialNotificationServiceImpl implements SocialNotificationService 
         notification.setStatus("sent");
         notification.setIsRead(false);
         notification.setSentAt(LocalDateTime.now());
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationSender.send(saved);
     }
 
     private String actorName(User actor) {

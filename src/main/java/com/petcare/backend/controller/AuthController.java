@@ -1,6 +1,7 @@
 package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
+import com.petcare.backend.dto.auth.request.FirebaseLoginRequest;
 import com.petcare.backend.dto.auth.request.GoogleLoginRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
@@ -62,6 +63,11 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập Google thành công", authService.loginWithGoogle(request)));
+    }
+
+    @PostMapping("/firebase")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithFirebase(@Valid @RequestBody FirebaseLoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đăng nhập Firebase thành công", authService.loginWithFirebase(request)));
     }
 
     @PostMapping("/refresh-token")

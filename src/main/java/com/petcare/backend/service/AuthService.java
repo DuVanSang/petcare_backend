@@ -1,6 +1,7 @@
 package com.petcare.backend.service;
 
 import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
+import com.petcare.backend.dto.auth.request.FirebaseLoginRequest;
 import com.petcare.backend.dto.auth.request.GoogleLoginRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
@@ -23,6 +24,8 @@ public interface AuthService {
     AuthResponse login(LoginRequest request);
 
     AuthResponse loginWithGoogle(GoogleLoginRequest request);
+
+    AuthResponse loginWithFirebase(FirebaseLoginRequest request);
 
     AuthResponse refreshToken(RefreshTokenRequest request);
 

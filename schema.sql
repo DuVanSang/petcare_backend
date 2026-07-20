@@ -901,7 +901,7 @@ DROP TABLE IF EXISTS `user_social_accounts`;
 CREATE TABLE `user_social_accounts` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint unsigned NOT NULL,
-  `provider` enum('google','apple') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider` enum('google','firebase','apple') COLLATE utf8mb4_unicode_ci NOT NULL,
   `provider_user_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UID từ Google/Apple',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

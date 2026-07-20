@@ -13,6 +13,8 @@ import org.springframework.data.repository.query.Param;
 public interface BlogRepository extends JpaRepository<Blog, Long> {
     boolean existsBySlug(String slug);
 
+    long countByStatus(BlogStatus status);
+
     Optional<Blog> findByIdAndStatus(Long id, BlogStatus status);
 
     @Query("""

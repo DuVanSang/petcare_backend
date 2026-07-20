@@ -14,4 +14,6 @@ public interface HealthLogRepository extends JpaRepository<HealthLog, Long> {
     Optional<HealthLog> findByPetIdAndLoggedDate(Long petId, LocalDate loggedDate);
 
     List<HealthLog> findByPetIdOrderByLoggedDateDesc(Long petId);
+
+    Optional<HealthLog> findFirstByPetIdOrderByLoggedDateDesc(Long petId);
 }

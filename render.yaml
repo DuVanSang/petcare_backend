@@ -1,0 +1,57 @@
+# Render Blueprint - PetCare Backend
+# Deploy: https://dashboard.render.com/ -> New -> Blueprint -> connect repo
+# Luu y: Render KHONG co MySQL managed -> dung Railway/PlanetScale/Aiven
+
+services:
+  - type: web
+    name: petcare-api
+    runtime: docker
+    rootDir: doan
+    plan: free
+    healthCheckPath: /api/v1/categories/species
+    # Persistent disk (can tra phi tren Render). Free tier: bo comment block disk neu khong dung duoc
+    # disk:
+    #   name: petcare-uploads
+    #   mountPath: /var/data/uploads
+    #   sizeGB: 1
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:+UseContainerSupport
+      - key: APP_UPLOAD_ROOT_DIR
+        value: /var/data/uploads
+      - key: APP_UPLOAD_PUBLIC_URL_PREFIX
+        sync: false
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "900000"
+      - key: REFRESH_TOKEN_EXPIRATION_MS
+        value: "2592000000"
+      - key: MAIL_PROVIDER
+        value: smtp
+      - key: MAIL_SENDER_EMAIL
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEV_EXPOSE_OTP
+        value: "false"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VACCINE_SEED_ENABLED
+        value: "true"
+      - key: REMINDER_SCHEDULER_ENABLED
+        value: "true"

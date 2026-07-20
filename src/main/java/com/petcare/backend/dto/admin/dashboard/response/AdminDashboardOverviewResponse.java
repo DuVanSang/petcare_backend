@@ -18,5 +18,8 @@ public class AdminDashboardOverviewResponse {
     private long overdueVaccinations;
     private long completedVaccinations;
     private long activeReminders;
+    private long totalBlogs;
+    private long publishedBlogs;
+    private long totalNotifications;
     private long notificationsSentToday;
 }

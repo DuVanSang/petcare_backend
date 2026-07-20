@@ -1,6 +1,5 @@
 package com.petcare.backend.service.impl;
 
-import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,48 +23,57 @@ public class EmailServiceImpl implements EmailService {
     private String senderEmail;
 
     @Override
-    public void sendVerificationOtp(String toEmail, String otpCode) {
+    public boolean sendVerificationOtp(String toEmail, String otpCode) {
         String subject = "PetCare - Mã xác thực email";
         String body = "Mã OTP xác thực email của bạn là: " + otpCode
                 + ". Mã có hiệu lực trong 10 phút.";
 
-        if (isSmtpProvider()) {
-            sendWithSmtp(toEmail, subject, body);
-            return;
-        }
-
-        log.info("Email verification OTP for {}: {}", toEmail, otpCode);
+        return deliverEmail(toEmail, subject, body);
     }
 
     @Override
-    public void sendPasswordResetOtp(String toEmail, String otpCode) {
+    public boolean sendPasswordResetOtp(String toEmail, String otpCode) {
         String subject = "PetCare - Mã đặt lại mật khẩu";
         String body = "Mã OTP đặt lại mật khẩu của bạn là: " + otpCode
                 + ". Mã có hiệu lực trong 10 phút.";
 
-        if (isSmtpProvider()) {
-            sendWithSmtp(toEmail, subject, body);
-            return;
+        return deliverEmail(toEmail, subject, body);
+    }
+
+    private boolean deliverEmail(String toEmail, String subject, String body) {
+        if (!isSmtpProvider()) {
+            log.info("Email OTP for {}: {}", toEmail, body);
+            return false;
         }
 
-        log.info("Password reset OTP for {}: {}", toEmail, otpCode);
+        return sendWithSmtp(toEmail, subject, body);
     }
 
     private boolean isSmtpProvider() {
         return "smtp".equalsIgnoreCase(mailProvider);
     }
 
-    private void sendWithSmtp(String toEmail, String subject, String body) {
+    private boolean sendWithSmtp(String toEmail, String subject, String body) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null || !StringUtils.hasText(senderEmail)) {
-            throw new BadRequestException("SMTP mail chưa được cấu hình");
+            log.warn("SMTP chưa cấu hình, in OTP ra log cho {}", toEmail);
+            log.info("Email fallback for {}: {}", toEmail, body);
+            return false;
         }
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(senderEmail);
-        message.setTo(toEmail);
-        message.setSubject(subject);
-        message.setText(body);
-        mailSender.send(message);
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(senderEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+            log.info("Đã gửi email OTP thành công cho {}", toEmail);
+            return true;
+        } catch (org.springframework.mail.MailException ex) {
+            log.error("Không gửi được email qua SMTP cho {}, in OTP ra log", toEmail, ex);
+            log.info("Email fallback for {}: {}", toEmail, body);
+            return false;
+        }
     }
 }

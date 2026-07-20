@@ -1,8 +1,10 @@
 package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.admin.dashboard.response.AdminDashboardOverviewResponse;
+import com.petcare.backend.model.Blog;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
+import com.petcare.backend.repository.BlogRepository;
 import com.petcare.backend.repository.CareReminderRepository;
 import com.petcare.backend.repository.NotificationRepository;
 import com.petcare.backend.repository.PetRepository;
@@ -23,6 +25,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final PetVaccinationRepository petVaccinationRepository;
     private final CareReminderRepository careReminderRepository;
     private final NotificationRepository notificationRepository;
+    private final BlogRepository blogRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -43,6 +46,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .overdueVaccinations(petVaccinationRepository.countByStatus(PetVaccination.VaccinationStatus.overdue))
                 .completedVaccinations(petVaccinationRepository.countByStatus(PetVaccination.VaccinationStatus.completed))
                 .activeReminders(careReminderRepository.countByActiveTrue())
+                .totalBlogs(blogRepository.count())
+                .publishedBlogs(blogRepository.countByStatus(Blog.BlogStatus.published))
+                .totalNotifications(notificationRepository.count())
                 .notificationsSentToday(notificationRepository.countByStatusAndSentAtBetween(
                         "sent",
                         startOfToday,

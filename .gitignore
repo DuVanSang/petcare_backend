@@ -3,11 +3,23 @@ target/
 .env
 .env.*
 !.env.example
+.evn
+firebase-service-account*.json
+service-account*.json
+secrets/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-/uploads/post-media/
+
+# User uploads (avatar, media - khong public len git)
+/uploads/*
+!/uploads/.gitkeep
+
 /backend_project_structure.md
+
+# Logs (tunnel, runtime)
+*.log
+cloudflared*.log
 ### STS ###
 .apt_generated
 .classpath

@@ -1,5 +1,6 @@
 package com.petcare.backend.service;
 
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
 import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
@@ -23,6 +24,8 @@ public interface UserService {
     void changePassword(UserPrincipal principal, ChangePasswordRequest request);
 
     List<UserDeviceResponse> getMyDevices(UserPrincipal principal);
+
+    UserDeviceResponse registerDevice(UserPrincipal principal, DeviceInfoRequest request);
 
     void deleteMyDevice(UserPrincipal principal, Long deviceId);
 }

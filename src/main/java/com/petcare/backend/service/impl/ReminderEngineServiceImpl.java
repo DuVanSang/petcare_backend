@@ -2,6 +2,7 @@ package com.petcare.backend.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
 import com.petcare.backend.model.CareReminder;
 import com.petcare.backend.model.CareReminderLog;
 import com.petcare.backend.model.Notification;
@@ -17,6 +18,7 @@ import com.petcare.backend.repository.PetVaccinationRepository;
 import com.petcare.backend.repository.VaccinationReminderLogRepository;
 import com.petcare.backend.service.PushNotificationSender;
 import com.petcare.backend.service.ReminderEngineService;
+import com.petcare.backend.service.VaccinationSafetyService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +49,7 @@ public class ReminderEngineServiceImpl implements ReminderEngineService {
     private final NotificationRepository notificationRepository;
     private final ReminderScheduleCalculator scheduleCalculator;
     private final PushNotificationSender pushNotificationSender;
+    private final VaccinationSafetyService vaccinationSafetyService;
     private final ObjectMapper objectMapper;
 
     @Value("${app.reminder.batch-size:100}")
@@ -174,17 +177,13 @@ public class ReminderEngineServiceImpl implements ReminderEngineService {
         log.setStatus(VaccinationReminderLog.VaccinationReminderStatus.pending);
         vaccinationLogRepository.save(log);
 
+        VaccinationSafetyWarningResponse safetyWarning = vaccinationSafetyService.evaluate(vaccination);
         Notification notification = createNotification(
                 recipient,
-                vaccinationTitle(stage),
-                vaccinationBody(vaccination, stage),
+                vaccinationTitle(vaccination, stage, safetyWarning),
+                vaccinationBody(vaccination, stage, safetyWarning),
                 "vaccination_reminder",
-                Map.of(
-                        "petId", vaccination.getPet().getId(),
-                        "vaccinationId", vaccination.getId(),
-                        "stage", stage.name(),
-                        "scheduledDate", vaccination.getScheduledDate().toString()
-                )
+                vaccinationReminderData(vaccination, stage, safetyWarning)
         );
         log.setStatus(VaccinationReminderLog.VaccinationReminderStatus.notified);
         log.setNotifiedAt(now);
@@ -225,6 +224,63 @@ public class ReminderEngineServiceImpl implements ReminderEngineService {
         return StringUtils.hasText(reminder.getNotes())
                 ? reminder.getNotes()
                 : "Đã đến thời gian " + reminder.getTitle().toLowerCase() + ".";
+    }
+
+    private String vaccinationTitle(
+            PetVaccination vaccination,
+            VaccinationReminderLog.VaccinationReminderStage stage,
+            VaccinationSafetyWarningResponse safetyWarning) {
+        if (isMedicalWarningStage(stage) && safetyWarning.isWarning()) {
+            return "[CẢNH BÁO Y TẾ] " + vaccination.getPet().getName() + " đến lịch tiêm";
+        }
+        return switch (stage) {
+            case BEFORE_7_DAYS -> "Còn 7 ngày đến lịch tiêm";
+            case BEFORE_1_DAY -> "Ngày mai đến lịch tiêm";
+            case DUE_TODAY -> "Hôm nay đến lịch tiêm";
+            case OVERDUE_1_DAY -> "Lịch tiêm đã quá hạn 1 ngày";
+            case OVERDUE_3_DAYS -> "Lịch tiêm đã quá hạn 3 ngày";
+            case OVERDUE_7_DAYS -> "Cảnh báo lịch tiêm quá hạn 1 tuần";
+            case OVERDUE_14_DAYS -> "Cảnh báo lịch tiêm quá hạn 2 tuần";
+        };
+    }
+
+    private String vaccinationBody(
+            PetVaccination vaccination,
+            VaccinationReminderLog.VaccinationReminderStage stage,
+            VaccinationSafetyWarningResponse safetyWarning) {
+        String base = "Mũi " + vaccination.getVaccineName()
+                + " của bé " + vaccination.getPet().getName()
+                + " có lịch ngày " + vaccination.getScheduledDate() + ".";
+        if (isMedicalWarningStage(stage) && safetyWarning.isWarning()) {
+            return safetyWarning.getMessage()
+                    + " Lý do: " + String.join("; ", safetyWarning.getReasons().stream().limit(3).toList());
+        }
+        if (stage == VaccinationReminderLog.VaccinationReminderStage.OVERDUE_14_DAYS) {
+            return base + " Vui lòng tham khảo bác sĩ thú y về phác đồ tiếp theo.";
+        }
+        return base;
+    }
+
+    private Map<String, Object> vaccinationReminderData(
+            PetVaccination vaccination,
+            VaccinationReminderLog.VaccinationReminderStage stage,
+            VaccinationSafetyWarningResponse safetyWarning) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("petId", vaccination.getPet().getId());
+        data.put("vaccinationId", vaccination.getId());
+        data.put("stage", stage.name());
+        data.put("scheduledDate", vaccination.getScheduledDate().toString());
+        data.put("safetyWarning", safetyWarning.isWarning());
+        data.put("safetyWarningLevel", safetyWarning.getWarningLevel().name());
+        return data;
+    }
+
+    private boolean isMedicalWarningStage(VaccinationReminderLog.VaccinationReminderStage stage) {
+        return stage == VaccinationReminderLog.VaccinationReminderStage.DUE_TODAY
+                || stage == VaccinationReminderLog.VaccinationReminderStage.OVERDUE_1_DAY
+                || stage == VaccinationReminderLog.VaccinationReminderStage.OVERDUE_3_DAYS
+                || stage == VaccinationReminderLog.VaccinationReminderStage.OVERDUE_7_DAYS
+                || stage == VaccinationReminderLog.VaccinationReminderStage.OVERDUE_14_DAYS;
     }
 
     private String vaccinationTitle(VaccinationReminderLog.VaccinationReminderStage stage) {

@@ -5,10 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class RegisterResponse {
-    private Long userId;
-    private String email;
-    private boolean emailVerified;
+public class OtpDeliveryResponse {
     private boolean emailSent;
     private String devOtp;
 }

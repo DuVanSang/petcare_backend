@@ -1,8 +1,7 @@
 package com.petcare.backend.service;
 
 public interface EmailService {
-    void sendVerificationOtp(String toEmail, String otpCode);
+    boolean sendVerificationOtp(String toEmail, String otpCode);
 
-    void sendPasswordResetOtp(String toEmail, String otpCode);
-
+    boolean sendPasswordResetOtp(String toEmail, String otpCode);
 }

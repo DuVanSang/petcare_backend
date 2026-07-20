@@ -1,5 +1,6 @@
 package com.petcare.backend.service.impl;
 
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
 import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
@@ -9,11 +10,13 @@ import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.User;
+import com.petcare.backend.model.UserDevice;
 import com.petcare.backend.repository.UserDeviceRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.UserService;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -146,6 +149,34 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(UserDeviceResponse::from)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public UserDeviceResponse registerDevice(UserPrincipal principal, DeviceInfoRequest request) {
+        User user = getUserOrThrow(principal.getId());
+
+        if (request == null || !StringUtils.hasText(request.getDeviceId())) {
+            throw new BadRequestException("deviceId là bắt buộc");
+        }
+
+        String deviceType = request.getDeviceType();
+        if (!StringUtils.hasText(deviceType)) {
+            throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
+        }
+
+        UserDevice userDevice = userDeviceRepository.findByDeviceId(request.getDeviceId().trim())
+                .orElseGet(UserDevice::new);
+
+        userDevice.setUser(user);
+        userDevice.setDeviceId(request.getDeviceId().trim());
+        userDevice.setDeviceType(deviceType.trim().toLowerCase());
+        userDevice.setDeviceToken(emptyToNull(request.getDeviceToken()));
+        userDevice.setNotificationEnabled(StringUtils.hasText(request.getDeviceToken()));
+        userDevice.setLastActiveAt(LocalDateTime.now());
+        userDevice.setLastLoginAt(LocalDateTime.now());
+
+        return UserDeviceResponse.from(userDeviceRepository.save(userDevice));
     }
 
     @Override

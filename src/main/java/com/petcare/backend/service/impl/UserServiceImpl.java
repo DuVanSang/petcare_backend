@@ -4,6 +4,7 @@ import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
 import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
+import com.petcare.backend.dto.user.response.PasswordStatusResponse;
 import com.petcare.backend.dto.user.response.UserDeviceResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.dto.upload.UploadFileResponse;
@@ -127,9 +128,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public PasswordStatusResponse getPasswordStatus(UserPrincipal principal) {
+        User user = getUserOrThrow(principal.getId());
+        return PasswordStatusResponse.builder()
+                .passwordStatus(StringUtils.hasText(user.getPasswordHash()) ? "SET" : "NOT_SET")
+                .build();
+    }
+
+    @Override
     @Transactional
     public void changePassword(UserPrincipal principal, ChangePasswordRequest request) {
         User user = getUserOrThrow(principal.getId());
+
+        if (!StringUtils.hasText(user.getPasswordHash())) {
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+            return;
+        }
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new BadRequestException("Mật khẩu hiện tại không chính xác");

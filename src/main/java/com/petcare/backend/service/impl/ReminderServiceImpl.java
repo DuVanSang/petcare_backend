@@ -369,6 +369,24 @@ public class ReminderServiceImpl implements ReminderService {
     }
 
     private void createPendingLog(CareReminder reminder, Instant dueAt) {
+        CareReminderLog existingLog = logRepository.findByReminderIdAndDueAt(reminder.getId(), dueAt)
+                .orElse(null);
+        if (existingLog != null) {
+            if (existingLog.getStatus() == CareReminderLog.ReminderLogStatus.completed
+                    || existingLog.getStatus() == CareReminderLog.ReminderLogStatus.notified) {
+                throw new BadRequestException("Thời gian nhắc này đã tồn tại trong lịch sử nhắc nhở");
+            }
+
+            existingLog.setStatus(CareReminderLog.ReminderLogStatus.pending);
+            existingLog.setDueDate(scheduleCalculator.toLocalDate(dueAt, reminder.getTimezone()));
+            existingLog.setNotifiedAt(null);
+            existingLog.setCompletedAt(null);
+            existingLog.setCompletedBy(null);
+            existingLog.setSnoozedUntil(null);
+            logRepository.save(existingLog);
+            return;
+        }
+
         CareReminderLog log = new CareReminderLog();
         log.setReminder(reminder);
         log.setDueAt(dueAt);

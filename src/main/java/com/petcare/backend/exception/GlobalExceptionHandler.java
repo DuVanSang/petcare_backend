@@ -1,5 +1,6 @@
 package com.petcare.backend.exception;
 
+import com.petcare.backend.dto.auth.response.EmailVerificationRequiredResponse;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.model.Blog;
@@ -135,6 +136,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
         return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApiResponse<EmailVerificationRequiredResponse>> handleEmailNotVerified(
+            EmailNotVerifiedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(
+                ex.getMessage(),
+                new EmailVerificationRequiredResponse(ex.getEmail(), true)
+        ));
     }
 
     @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})

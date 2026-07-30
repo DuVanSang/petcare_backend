@@ -73,5 +73,7 @@ public interface CareReminderLogRepository extends JpaRepository<CareReminderLog
 
     boolean existsByReminderIdAndDueAt(Long reminderId, Instant dueAt);
 
+    Optional<CareReminderLog> findByReminderIdAndDueAt(Long reminderId, Instant dueAt);
+
     boolean existsByReminderIdAndDueAtAndIdNot(Long reminderId, Instant dueAt, Long id);
 }

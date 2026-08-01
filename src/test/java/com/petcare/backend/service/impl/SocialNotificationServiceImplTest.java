@@ -9,6 +9,7 @@ import com.petcare.backend.model.Post;
 import com.petcare.backend.model.PostComment;
 import com.petcare.backend.model.User;
 import com.petcare.backend.repository.NotificationRepository;
+import com.petcare.backend.service.PushNotificationSender;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,9 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SocialNotificationServiceImplTest {
     @Mock NotificationRepository notifications;
+    @Mock PushNotificationSender pushNotificationSender;
     private SocialNotificationServiceImpl service;
 
-    @BeforeEach void setUp() { service = new SocialNotificationServiceImpl(notifications); }
+    @BeforeEach void setUp() { service = new SocialNotificationServiceImpl(notifications, pushNotificationSender); }
 
     private User user(Long id, String name) { User user = new User(); user.setId(id); user.setFullName(name); return user; }
     private Post post(User owner) { Post post = new Post(); post.setId(10L); post.setUser(owner); return post; }

@@ -9,6 +9,7 @@ import com.petcare.backend.model.*;
 import com.petcare.backend.model.enums.FriendRequestStatus;
 import com.petcare.backend.repository.*;
 import com.petcare.backend.service.FriendMapper;
+import com.petcare.backend.service.PushNotificationSender;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,8 +18,8 @@ import org.mockito.junit.jupiter.*;
 
 @ExtendWith(MockitoExtension.class) @MockitoSettings(strictness=org.mockito.quality.Strictness.LENIENT)
 class FriendServiceImplTest {
- @Mock FriendRequestRepository requests;@Mock FriendshipRepository friendships;@Mock UserRepository users;@Mock NotificationRepository notifications;@Mock FriendMapper mapper;FriendServiceImpl service;
- @BeforeEach void init(){service=new FriendServiceImpl(requests,friendships,users,notifications,mapper);when(requests.save(any())).thenAnswer(i->i.getArgument(0));}
+ @Mock FriendRequestRepository requests;@Mock FriendshipRepository friendships;@Mock UserRepository users;@Mock NotificationRepository notifications;@Mock FriendMapper mapper;@Mock PushNotificationSender pushNotificationSender;FriendServiceImpl service;
+ @BeforeEach void init(){service=new FriendServiceImpl(requests,friendships,users,notifications,mapper,pushNotificationSender);when(requests.save(any())).thenAnswer(i->i.getArgument(0));}
  User user(long id){User u=new User();u.setId(id);u.setStatus("active");u.setFullName("U"+id);return u;}
  @Test void sendRequest_ValidationsAndDuplicatePartitions(){User a=user(1),b=user(2);when(users.findById(1L)).thenReturn(Optional.of(a));SendFriendRequestRequest r=new SendFriendRequestRequest();assertThatThrownBy(()->service.sendFriendRequest(1L,r)).isInstanceOf(BadRequestException.class);r.setReceiverId(1L);assertThatThrownBy(()->service.sendFriendRequest(1L,r)).isInstanceOf(BadRequestException.class);r.setReceiverId(2L);when(users.findById(2L)).thenReturn(Optional.of(b));when(friendships.existsFriendshipBetween(1L,2L)).thenReturn(true);assertThatThrownBy(()->service.sendFriendRequest(1L,r)).isInstanceOf(ConflictException.class);when(friendships.existsFriendshipBetween(1L,2L)).thenReturn(false);FriendRequest pending=FriendRequest.builder().sender(a).receiver(b).status(FriendRequestStatus.PENDING).build();when(requests.findBySender_IdAndReceiver_Id(1L,2L)).thenReturn(Optional.of(pending));service.sendFriendRequest(1L,r);verify(mapper).toFriendRequestResponse(pending);}
  @Test void unfriend_IdAndMissingUserPartitions(){when(users.findById(1L)).thenReturn(Optional.of(user(1)));assertThatThrownBy(()->service.unfriend(1L,0L)).isInstanceOf(BadRequestException.class);assertThatThrownBy(()->service.unfriend(1L,1L)).isInstanceOf(BadRequestException.class);when(users.existsById(2L)).thenReturn(false);assertThatThrownBy(()->service.unfriend(1L,2L)).isInstanceOf(ResourceNotFoundException.class);when(users.existsById(2L)).thenReturn(true);service.unfriend(1L,2L);verify(friendships).deleteFriendshipBetween(1L,2L);}

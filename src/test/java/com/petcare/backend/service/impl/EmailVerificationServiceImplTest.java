@@ -8,7 +8,6 @@ import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.EmailVerificationToken;
 import com.petcare.backend.model.User;
 import com.petcare.backend.repository.EmailVerificationTokenRepository;
-import com.petcare.backend.service.EmailService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,11 +22,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceImplTest {
     @Mock EmailVerificationTokenRepository tokens;
-    @Mock EmailService emailService;
     private EmailVerificationServiceImpl service;
 
     @BeforeEach void setUp() {
-        service = new EmailVerificationServiceImpl(tokens, emailService);
+        service = new EmailVerificationServiceImpl(tokens);
         ReflectionTestUtils.setField(service, "otpExpirationMinutes", 10L);
     }
 
@@ -35,14 +33,14 @@ class EmailVerificationServiceImplTest {
         User user = new User(); user.setId(1L); user.setEmail("pet@example.com"); user.setEmailVerified(verified); return user;
     }
 
-    @Test void createAndSendOtp_invalidatesAllActiveTokensPersistsSixDigitTokenAndSendsEmail() {
+    @Test void createOtp_invalidatesAllActiveTokensAndPersistsSixDigitToken() {
         User user = user(false);
         EmailVerificationToken first = new EmailVerificationToken();
         EmailVerificationToken second = new EmailVerificationToken();
         when(tokens.findByUserIdAndUsedAtIsNull(1L)).thenReturn(List.of(first, second));
         LocalDateTime before = LocalDateTime.now();
 
-        service.createAndSendOtp(user);
+        String otpCode = service.createOtp(user);
 
         assertThat(first.getUsedAt()).isNotNull(); assertThat(second.getUsedAt()).isNotNull();
         ArgumentCaptor<EmailVerificationToken> saved = ArgumentCaptor.forClass(EmailVerificationToken.class);
@@ -50,16 +48,15 @@ class EmailVerificationServiceImplTest {
         EmailVerificationToken fresh = saved.getAllValues().get(2);
         assertThat(fresh.getUser()).isSameAs(user);
         assertThat(fresh.getOtpCode()).matches("\\d{6}");
+        assertThat(otpCode).isEqualTo(fresh.getOtpCode());
         assertThat(fresh.getExpiresAt()).isAfterOrEqualTo(before.plusMinutes(10).minusSeconds(1));
-        verify(emailService).sendVerificationOtp("pet@example.com", fresh.getOtpCode());
     }
 
-    @Test void createAndSendOtp_withNoActiveTokenOnlySavesAndSendsNewOtp() {
+    @Test void createOtp_withNoActiveTokenOnlySavesNewOtp() {
         User user = user(false);
         when(tokens.findByUserIdAndUsedAtIsNull(1L)).thenReturn(List.of());
-        service.createAndSendOtp(user);
+        assertThat(service.createOtp(user)).matches("\\d{6}");
         verify(tokens).save(any(EmailVerificationToken.class));
-        verify(emailService).sendVerificationOtp(eq("pet@example.com"), matches("\\d{6}"));
     }
 
     @Test void verify_rejectsAlreadyVerifiedAndMissingTokenWithoutSaving() {

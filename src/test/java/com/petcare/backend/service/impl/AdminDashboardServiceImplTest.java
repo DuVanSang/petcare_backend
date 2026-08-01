@@ -9,6 +9,7 @@ import com.petcare.backend.dto.admin.dashboard.response.AdminDashboardOverviewRe
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.repository.CareReminderRepository;
+import com.petcare.backend.repository.BlogRepository;
 import com.petcare.backend.repository.NotificationRepository;
 import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.PetVaccinationRepository;
@@ -28,12 +29,13 @@ class AdminDashboardServiceImplTest {
     @Mock private PetVaccinationRepository petVaccinationRepository;
     @Mock private CareReminderRepository careReminderRepository;
     @Mock private NotificationRepository notificationRepository;
+    @Mock private BlogRepository blogRepository;
     private AdminDashboardServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new AdminDashboardServiceImpl(userRepository, petRepository, petVaccinationRepository,
-                careReminderRepository, notificationRepository);
+                careReminderRepository, notificationRepository, blogRepository);
     }
 
     @Test

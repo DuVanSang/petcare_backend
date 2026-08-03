@@ -466,8 +466,12 @@ public class PetServiceImpl implements PetService {
             pet.setBreed(breed);
             applyCustomBreedName(pet, breed, customBreedName);
         } else if (StringUtils.hasText(customBreedName)) {
-            pet.setBreed(null);
-            pet.setCustomBreedName(customBreedName.trim());
+            if (pet.getSpecies() == null) {
+                throw new BadRequestException("Vui lòng chọn loài trước khi nhập giống");
+            }
+            Breed breed = resolveCustomBreed(pet.getSpecies(), customBreedName);
+            pet.setBreed(breed);
+            pet.setCustomBreedName(null);
         }
 
         if (gender != null) pet.setGender(gender);
@@ -488,6 +492,18 @@ public class PetServiceImpl implements PetService {
                     species.setName(normalizedName);
                     species.setActive(true);
                     return speciesRepository.save(species);
+                });
+    }
+
+    private Breed resolveCustomBreed(Species species, String customBreedName) {
+        String normalizedName = customBreedName.trim();
+        return breedRepository.findBySpeciesIdAndNameIgnoreCase(species.getId(), normalizedName)
+                .orElseGet(() -> {
+                    Breed breed = new Breed();
+                    breed.setSpecies(species);
+                    breed.setName(normalizedName);
+                    breed.setActive(true);
+                    return breedRepository.save(breed);
                 });
     }
 

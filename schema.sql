@@ -561,7 +561,7 @@ CREATE TABLE `pets` (
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `avatar_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `species_id` bigint unsigned NOT NULL,
-  `breed_id` bigint unsigned NOT NULL,
+  `breed_id` bigint unsigned DEFAULT NULL,
   `gender` enum('male','female','unknown') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown',
   `date_of_birth` date DEFAULT NULL COMMENT 'Ngày sinh chính xác',
   `estimated_age_months` int DEFAULT NULL COMMENT 'Dùng khi không rõ ngày sinh chính xác',

@@ -107,7 +107,8 @@ public class PetServiceImpl implements PetService {
             if (uploadedAvatarUrl != null) pet.setAvatarUrl(uploadedAvatarUrl);
             else if (StringUtils.hasText(request.getAvatarUrl())) pet.setAvatarUrl(request.getAvatarUrl().trim());
 
-            applyPetFields(pet, request.getSpeciesId(), request.getBreedId(), request.getCustomBreedName(),
+            applyPetFields(pet, request.getSpeciesId(), request.getCustomSpeciesName(),
+                    request.getBreedId(), request.getCustomBreedName(),
                     request.getGender(), request.getDateOfBirth(), request.getEstimatedAgeMonths(),
                     request.getCurrentWeight(), request.getColorFeatures(), request.getSpayedStatus(),
                     request.getNotes(), request.getStatus());
@@ -173,7 +174,7 @@ public class PetServiceImpl implements PetService {
             pet.setName(request.getName().trim());
         }
 
-        applyPetFields(pet, request.getSpeciesId(), request.getBreedId(),
+        applyPetFields(pet, request.getSpeciesId(), request.getCustomSpeciesName(), request.getBreedId(),
                 request.getCustomBreedName(),
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
@@ -442,16 +443,18 @@ public class PetServiceImpl implements PetService {
                 .orElse("viewer");
     }
 
-    private void applyPetFields(Pet pet, Long speciesId, Long breedId, String customBreedName,
+    private void applyPetFields(Pet pet, Long speciesId, String customSpeciesName, Long breedId, String customBreedName,
                                 Pet.Gender gender, java.time.LocalDate dateOfBirth,
                                 Integer estimatedAgeMonths, java.math.BigDecimal currentWeight,
                                 String colorFeatures, Pet.SpayedStatus spayedStatus,
                                 String notes, Pet.PetStatus status) {
 
-        if (speciesId != null) {
+        if (speciesId != null && speciesId > 0) {
             Species species = speciesRepository.findById(speciesId)
                     .orElseThrow(() -> new BadRequestException("Loài không tồn tại"));
             pet.setSpecies(species);
+        } else if (StringUtils.hasText(customSpeciesName)) {
+            pet.setSpecies(resolveCustomSpecies(customSpeciesName));
         }
 
         if (breedId != null) {
@@ -463,7 +466,8 @@ public class PetServiceImpl implements PetService {
             pet.setBreed(breed);
             applyCustomBreedName(pet, breed, customBreedName);
         } else if (StringUtils.hasText(customBreedName)) {
-            throw new BadRequestException("Không thể nhập giống tự do khi chưa chọn giống từ danh sách");
+            pet.setBreed(null);
+            pet.setCustomBreedName(customBreedName.trim());
         }
 
         if (gender != null) pet.setGender(gender);
@@ -474,6 +478,17 @@ public class PetServiceImpl implements PetService {
         if (spayedStatus != null) pet.setSpayedStatus(spayedStatus);
         if (StringUtils.hasText(notes)) pet.setNotes(notes);
         if (status != null) pet.setStatus(status);
+    }
+
+    private Species resolveCustomSpecies(String customSpeciesName) {
+        String normalizedName = customSpeciesName.trim();
+        return speciesRepository.findByNameIgnoreCase(normalizedName)
+                .orElseGet(() -> {
+                    Species species = new Species();
+                    species.setName(normalizedName);
+                    species.setActive(true);
+                    return speciesRepository.save(species);
+                });
     }
 
     private void initializePetRecords(Pet pet, User owner, CreatePetRequest request) {

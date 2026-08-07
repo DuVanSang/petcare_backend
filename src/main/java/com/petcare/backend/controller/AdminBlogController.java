@@ -6,10 +6,12 @@ import com.petcare.backend.dto.blog.response.BlogOptionResponse;
 import com.petcare.backend.dto.blog.response.BlogResponse;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.common.PageResponse;
+import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.model.Blog;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.AdminBlogService;
 import com.petcare.backend.service.BlogService;
+import com.petcare.backend.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +19,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,17 +30,20 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/admin/blogs")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin - Blogs", description = "Quản lý blog kiến thức")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminBlogController {
     private final AdminBlogService adminBlogService;
     private final BlogService blogService;
+    private final FileStorageService fileStorageService;
 
     @GetMapping("/categories")
     @Operation(summary = "Lấy danh sách danh mục blog")
@@ -54,6 +60,17 @@ public class AdminBlogController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách trạng thái blog thành công",
                 adminBlogService.getBlogStatuses()
+        ));
+    }
+
+    @PostMapping(value = "/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải ảnh bìa blog")
+    public ResponseEntity<ApiResponse<UploadFileResponse>> uploadCoverImage(
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tải ảnh bìa blog thành công",
+                fileStorageService.storeBlogCoverImage(file)
         ));
     }
 
@@ -82,7 +99,6 @@ public class AdminBlogController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo blog")
     public ResponseEntity<ApiResponse<BlogResponse>> createBlog(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -95,7 +111,6 @@ public class AdminBlogController {
     }
 
     @PatchMapping("/{blogId}")
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cập nhật blog")
     public ResponseEntity<ApiResponse<BlogResponse>> updateBlog(
             @PathVariable Long blogId,

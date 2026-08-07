@@ -22,6 +22,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,6 +62,16 @@ public class VaccinationController {
                 "Kích hoạt lịch tiêm thành công",
                 vaccinationService.confirmPlan(principal, petId, request)
         ));
+    }
+
+    @DeleteMapping("/reset-plan")
+    @PostMapping("/reset-plan")
+    @Operation(summary = "Xóa và thiết lập lại kế hoạch tiêm từ đầu")
+    public ResponseEntity<ApiResponse<Void>> resetPlan(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        vaccinationService.resetPlan(principal, petId);
+        return ResponseEntity.ok(ApiResponse.success("Đã đặt lại kế hoạch tiêm thành công", null));
     }
 
     @GetMapping

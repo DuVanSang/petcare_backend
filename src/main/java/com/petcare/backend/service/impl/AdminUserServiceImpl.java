@@ -1,5 +1,7 @@
 package com.petcare.backend.service.impl;
 
+import com.petcare.backend.dto.admin.user.request.AdminCreateUserRequest;
+import com.petcare.backend.dto.admin.user.request.AdminUpdateUserRequest;
 import com.petcare.backend.dto.admin.user.request.AdminUpdateUserRoleRequest;
 import com.petcare.backend.dto.admin.user.request.AdminUpdateUserStatusRequest;
 import com.petcare.backend.dto.admin.user.response.AdminUserDetailResponse;
@@ -9,11 +11,15 @@ import com.petcare.backend.dto.user.response.UserDeviceResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.User;
+import com.petcare.backend.model.enums.PostStatus;
+import com.petcare.backend.repository.PetRepository;
+import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.UserDeviceRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.AdminUserService;
 import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +30,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,11 +39,14 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements AdminUserService {
     private static final int MAX_PAGE_SIZE = 100;
-    private static final Set<String> ALLOWED_ROLES = Set.of("user", "admin", "moderator");
+    private static final Set<String> ALLOWED_ROLES = Set.of("user", "admin");
     private static final Set<String> ALLOWED_STATUSES = Set.of("active", "banned");
 
     private final UserRepository userRepository;
     private final UserDeviceRepository userDeviceRepository;
+    private final PetRepository petRepository;
+    private final PostRepository postRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,7 +67,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         Page<AdminUserResponse> users = userRepository
                 .findAll(buildSpecification(keyword, role, status, emailVerified, includeDeleted), pageable)
-                .map(AdminUserResponse::from);
+                .map(this::toListResponse);
         return PageResponse.from(users);
     }
 
@@ -69,23 +79,102 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     @Transactional
+    public AdminUserDetailResponse createUser(AdminCreateUserRequest request) {
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email đã được sử dụng");
+        }
+
+        String username = trimToNull(request.getUsername());
+        if (username != null && userRepository.existsByUsernameIgnoreCase(username)) {
+            throw new BadRequestException("Username đã được sử dụng");
+        }
+
+        String phoneNumber = trimToNull(request.getPhoneNumber());
+        if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new BadRequestException("Số điện thoại đã được sử dụng");
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFullName(request.getFullName().trim());
+        user.setUsername(username);
+        user.setPhoneNumber(phoneNumber);
+        user.setRole(StringUtils.hasText(request.getRole())
+                ? normalizeAllowedValue(request.getRole(), ALLOWED_ROLES, "Vai trò người dùng không hợp lệ")
+                : "user");
+        user.setStatus(StringUtils.hasText(request.getStatus())
+                ? normalizeAllowedValue(request.getStatus(), ALLOWED_STATUSES, "Trạng thái người dùng không hợp lệ")
+                : "active");
+        user.setEmailVerified(true);
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        return toDetailResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public AdminUserDetailResponse updateUser(UserPrincipal currentAdmin, Long userId, AdminUpdateUserRequest request) {
+        User user = getUserOrThrow(userId);
+
+        if (StringUtils.hasText(request.getEmail())) {
+            String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+            if (!email.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(email)) {
+                throw new BadRequestException("Email đã được sử dụng");
+            }
+            user.setEmail(email);
+        }
+
+        if (request.getFullName() != null) {
+            if (!StringUtils.hasText(request.getFullName())) {
+                throw new BadRequestException("Họ tên không được để trống");
+            }
+            user.setFullName(request.getFullName().trim());
+        }
+
+        if (request.getUsername() != null) {
+            String username = trimToNull(request.getUsername());
+            if (username != null && userRepository.existsByUsernameIgnoreCaseAndIdNot(username, userId)) {
+                throw new BadRequestException("Username đã được sử dụng");
+            }
+            user.setUsername(username);
+        }
+
+        if (request.getPhoneNumber() != null) {
+            String phoneNumber = trimToNull(request.getPhoneNumber());
+            if (phoneNumber != null && userRepository.existsByPhoneNumberAndIdNot(phoneNumber, userId)) {
+                throw new BadRequestException("Số điện thoại đã được sử dụng");
+            }
+            user.setPhoneNumber(phoneNumber);
+        }
+
+        if (request.getBio() != null) user.setBio(trimToNull(request.getBio()));
+        if (request.getDateOfBirth() != null) user.setDateOfBirth(request.getDateOfBirth());
+        if (request.getLocation() != null) user.setLocation(trimToNull(request.getLocation()));
+
+        if (request.getEmailVerified() != null) {
+            user.setEmailVerified(request.getEmailVerified());
+            user.setEmailVerifiedAt(Boolean.TRUE.equals(request.getEmailVerified()) ? LocalDateTime.now() : null);
+        }
+        if (StringUtils.hasText(request.getRole())) {
+            applyRoleChange(currentAdmin, user, request.getRole());
+        }
+        if (StringUtils.hasText(request.getStatus())) {
+            applyStatusChange(currentAdmin, user, request.getStatus());
+        }
+
+        return toDetailResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
     public AdminUserDetailResponse updateUserStatus(
             UserPrincipal currentAdmin,
             Long userId,
             AdminUpdateUserStatusRequest request
     ) {
         User user = getUserOrThrow(userId);
-        String newStatus = normalizeAllowedValue(request.getStatus(), ALLOWED_STATUSES, "Trạng thái người dùng không hợp lệ");
-
-        if (currentAdmin.getId().equals(user.getId()) && "banned".equals(newStatus)) {
-            throw new BadRequestException("Admin không thể tự khóa tài khoản của mình");
-        }
-
-        if (isActiveAdmin(user) && !"active".equals(newStatus)) {
-            ensureMoreThanOneActiveAdmin();
-        }
-
-        user.setStatus(newStatus);
+        applyStatusChange(currentAdmin, user, request.getStatus());
         return toDetailResponse(userRepository.save(user));
     }
 
@@ -97,17 +186,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             AdminUpdateUserRoleRequest request
     ) {
         User user = getUserOrThrow(userId);
-        String newRole = normalizeAllowedValue(request.getRole(), ALLOWED_ROLES, "Vai trò người dùng không hợp lệ");
-
-        if (currentAdmin.getId().equals(user.getId()) && !"admin".equals(newRole)) {
-            throw new BadRequestException("Admin không thể tự hạ quyền của mình");
-        }
-
-        if (isActiveAdmin(user) && !"admin".equals(newRole)) {
-            ensureMoreThanOneActiveAdmin();
-        }
-
-        user.setRole(newRole);
+        applyRoleChange(currentAdmin, user, request.getRole());
         return toDetailResponse(userRepository.save(user));
     }
 
@@ -166,7 +245,15 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .stream()
                 .map(UserDeviceResponse::from)
                 .toList();
-        return AdminUserDetailResponse.from(user, devices);
+        long petCount = petRepository.countAccessiblePetsByUserId(user.getId());
+        long postCount = postRepository.countVisiblePostsByUserId(user.getId(), PostStatus.DELETED);
+        return AdminUserDetailResponse.from(user, devices, petCount, postCount);
+    }
+
+    private AdminUserResponse toListResponse(User user) {
+        long petCount = petRepository.countAccessiblePetsByUserId(user.getId());
+        long postCount = postRepository.countVisiblePostsByUserId(user.getId(), PostStatus.DELETED);
+        return AdminUserResponse.from(user, petCount, postCount);
     }
 
     private User getUserOrThrow(Long userId) {
@@ -183,6 +270,28 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BadRequestException(errorMessage);
         }
         return normalized;
+    }
+
+    private void applyStatusChange(UserPrincipal currentAdmin, User user, String status) {
+        String newStatus = normalizeAllowedValue(status, ALLOWED_STATUSES, "Trạng thái người dùng không hợp lệ");
+        if (currentAdmin.getId().equals(user.getId()) && "banned".equals(newStatus)) {
+            throw new BadRequestException("Admin không thể tự khóa tài khoản của mình");
+        }
+        if (isActiveAdmin(user) && !"active".equals(newStatus)) {
+            ensureMoreThanOneActiveAdmin();
+        }
+        user.setStatus(newStatus);
+    }
+
+    private void applyRoleChange(UserPrincipal currentAdmin, User user, String role) {
+        String newRole = normalizeAllowedValue(role, ALLOWED_ROLES, "Vai trò người dùng không hợp lệ");
+        if (currentAdmin.getId().equals(user.getId()) && !"admin".equals(newRole)) {
+            throw new BadRequestException("Admin không thể tự hạ quyền của mình");
+        }
+        if (isActiveAdmin(user) && !"admin".equals(newRole)) {
+            ensureMoreThanOneActiveAdmin();
+        }
+        user.setRole(newRole);
     }
 
     private int validatePage(int page) {
@@ -207,5 +316,12 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (userRepository.countByRoleAndStatusAndDeletedAtIsNull("admin", "active") <= 1) {
             throw new BadRequestException("Hệ thống phải còn ít nhất một admin đang hoạt động");
         }
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 }

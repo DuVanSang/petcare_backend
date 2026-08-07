@@ -27,8 +27,14 @@ public class AdminUserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
+    private Long petCount;
+    private Long postCount;
 
     public static AdminUserResponse from(User user) {
+        return from(user, null, null);
+    }
+
+    public static AdminUserResponse from(User user, Long petCount, Long postCount) {
         return AdminUserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -48,6 +54,8 @@ public class AdminUserResponse {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .deletedAt(user.getDeletedAt())
+                .petCount(petCount)
+                .postCount(postCount)
                 .build();
     }
 }

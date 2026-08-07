@@ -13,6 +13,7 @@ public class AdminSocialPostResponse {
     private String authorName;
     private String authorEmail;
     private Long petId;
+    private String petName;
     private String caption;
     private String privacy;
     private String status;
@@ -22,13 +23,14 @@ public class AdminSocialPostResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static AdminSocialPostResponse from(Post post, long reactionCount, long commentCount) {
+    public static AdminSocialPostResponse from(Post post, long reactionCount, long commentCount, String petName) {
         return AdminSocialPostResponse.builder()
                 .id(post.getId())
                 .authorId(post.getUser() == null ? null : post.getUser().getId())
                 .authorName(post.getUser() == null ? null : post.getUser().getFullName())
                 .authorEmail(post.getUser() == null ? null : post.getUser().getEmail())
                 .petId(post.getPetId())
+                .petName(petName)
                 .caption(post.getCaption())
                 .privacy(post.getPrivacy() == null ? null : post.getPrivacy().getValue())
                 .status(post.getStatus() == null ? null : post.getStatus().getValue())

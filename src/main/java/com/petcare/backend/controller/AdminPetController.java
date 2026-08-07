@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/pets")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin - Pets", description = "Xem dữ liệu thú cưng và hồ sơ tiêm")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminPetController {

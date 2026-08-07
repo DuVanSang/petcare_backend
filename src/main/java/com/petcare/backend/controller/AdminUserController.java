@@ -1,5 +1,7 @@
 package com.petcare.backend.controller;
 
+import com.petcare.backend.dto.admin.user.request.AdminCreateUserRequest;
+import com.petcare.backend.dto.admin.user.request.AdminUpdateUserRequest;
 import com.petcare.backend.dto.admin.user.request.AdminUpdateUserRoleRequest;
 import com.petcare.backend.dto.admin.user.request.AdminUpdateUserStatusRequest;
 import com.petcare.backend.dto.admin.user.response.AdminUserDetailResponse;
@@ -19,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,6 +59,30 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy chi tiết người dùng thành công",
                 adminUserService.getUserDetail(userId)
+        ));
+    }
+
+    @PostMapping
+    @Operation(summary = "Tạo người dùng mới")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> createUser(
+            @Valid @RequestBody AdminCreateUserRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tạo người dùng thành công",
+                adminUserService.createUser(request)
+        ));
+    }
+
+    @PatchMapping("/{userId}")
+    @Operation(summary = "Cập nhật thông tin người dùng")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> updateUser(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long userId,
+            @Valid @RequestBody AdminUpdateUserRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật người dùng thành công",
+                adminUserService.updateUser(principal, userId, request)
         ));
     }
 

@@ -16,6 +16,17 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
 
     List<Pet> findByOwnerId(Long ownerId);
 
+    @Query("""
+            SELECT COUNT(DISTINCT p.id)
+            FROM Pet p
+            WHERE p.owner.id = :userId
+               OR EXISTS (
+                   SELECT cp FROM PetCoParent cp
+                   WHERE cp.pet.id = p.id AND cp.user.id = :userId
+               )
+            """)
+    long countAccessiblePetsByUserId(@Param("userId") Long userId);
+
     long countByStatus(Pet.PetStatus status);
 
     @Query("""

@@ -9,6 +9,7 @@ import com.petcare.backend.dto.social.response.SocialReportResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.ModerationAction;
+import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.Post;
 import com.petcare.backend.model.PostComment;
 import com.petcare.backend.model.SocialReport;
@@ -21,6 +22,7 @@ import com.petcare.backend.repository.ModerationActionRepository;
 import com.petcare.backend.repository.PostCommentRepository;
 import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
+import com.petcare.backend.repository.PetRepository;
 import com.petcare.backend.repository.SocialReportRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
@@ -47,6 +49,7 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
     private final PostCommentRepository postCommentRepository;
     private final PostReactionRepository postReactionRepository;
     private final CommentReactionRepository commentReactionRepository;
+    private final PetRepository petRepository;
     private final SocialReportRepository socialReportRepository;
     private final ModerationActionRepository moderationActionRepository;
     private final UserRepository userRepository;
@@ -362,10 +365,16 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
     }
 
     private AdminSocialPostResponse toPostResponse(Post post) {
+        String petName = post.getPetId() == null
+                ? null
+                : petRepository.findById(post.getPetId())
+                        .map(Pet::getName)
+                        .orElse(null);
         return AdminSocialPostResponse.from(
                 post,
                 postReactionRepository.countByPost_Id(post.getId()),
-                postCommentRepository.countByPost_IdAndStatus(post.getId(), CommentStatus.VISIBLE)
+                postCommentRepository.countByPost_IdAndStatus(post.getId(), CommentStatus.VISIBLE),
+                petName
         );
     }
 

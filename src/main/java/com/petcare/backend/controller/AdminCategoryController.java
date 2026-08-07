@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin - Categories", description = "Quản lý loài và giống")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminCategoryController {

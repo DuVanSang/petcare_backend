@@ -19,11 +19,9 @@ import com.petcare.backend.model.HealthCondition;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetCoParent;
 import com.petcare.backend.model.PetTimelineEvent;
-import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.Species;
 import com.petcare.backend.model.User;
 import com.petcare.backend.model.WeightLog;
-import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.repository.BreedRepository;
 import com.petcare.backend.repository.CoParentInvitationRepository;
 import com.petcare.backend.repository.HealthConditionRepository;
@@ -33,8 +31,6 @@ import com.petcare.backend.repository.PetTimelineEventRepository;
 import com.petcare.backend.repository.SpeciesRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.repository.WeightLogRepository;
-import com.petcare.backend.repository.PetVaccinationRepository;
-import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.NotificationService;
@@ -76,8 +72,6 @@ public class PetServiceImpl implements PetService {
     private final PetTimelineEventRepository petTimelineEventRepository;
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
-    private final PetVaccinationRepository petVaccinationRepository;
-    private final VaccineTemplateRepository vaccineTemplateRepository;
 
     // ========================
     // PET CRUD
@@ -520,8 +514,6 @@ public class PetServiceImpl implements PetService {
             weightLogRepository.save(weightLog);
         }
 
-        if (pet.getSpecies() != null) generateVaccinationSchedule(pet);
-
         PetTimelineEvent event = new PetTimelineEvent();
         event.setPet(pet);
         event.setEventType(PetTimelineEvent.EventType.profile_created);
@@ -581,21 +573,6 @@ public class PetServiceImpl implements PetService {
                     condition.setIsActive(true);
                     healthConditionRepository.save(condition);
                 });
-    }
-
-    private void generateVaccinationSchedule(Pet pet) {
-        LocalDate birth = pet.getDateOfBirth() != null ? pet.getDateOfBirth()
-                : pet.getEstimatedAgeMonths() != null && pet.getEstimatedAgeMonths() > 0
-                ? LocalDate.now().minusMonths(pet.getEstimatedAgeMonths()) : LocalDate.now();
-        for (VaccineTemplate template : vaccineTemplateRepository.findBySpeciesId(pet.getSpecies().getId())) {
-            if (!Boolean.TRUE.equals(template.getActive())) continue;
-            com.petcare.backend.model.PetVaccination vaccination = new com.petcare.backend.model.PetVaccination();
-            vaccination.setPet(pet); vaccination.setVaccineTemplate(template);
-            vaccination.setVaccineName(template.getVaccineName()); vaccination.setDoseNumber(template.getDoseNumber());
-            vaccination.setStatus(com.petcare.backend.model.PetVaccination.VaccinationStatus.scheduled);
-            vaccination.setScheduledDate(birth.plusWeeks(template.getRecommendedAgeWeeks()));
-            petVaccinationRepository.save(vaccination);
-        }
     }
 
     private String generateInviteCode() {

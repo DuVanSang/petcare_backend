@@ -70,4 +70,6 @@ public interface VaccinationService {
             Long vaccinationId,
             RescheduleVaccinationRequest request
     );
+
+    void resetPlan(UserPrincipal principal, Long petId);
 }

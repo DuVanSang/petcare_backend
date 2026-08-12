@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 public interface UserService {
     UserResponse getCurrentUser(UserPrincipal principal);
 
+    UserResponse getUserById(Long userId);
+
     UserResponse updateProfile(UserPrincipal principal, UpdateProfileRequest request);
 
     UserResponse uploadAvatar(UserPrincipal principal, MultipartFile file);

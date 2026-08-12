@@ -40,6 +40,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserResponse getUserById(Long userId) {
+        return UserResponse.from(getUserOrThrow(userId));
+    }
+
+    @Override
     @Transactional
     public UserResponse updateProfile(UserPrincipal principal, UpdateProfileRequest request) {
         User user = getUserOrThrow(principal.getId());

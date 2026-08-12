@@ -355,4 +355,57 @@ public class VaccinationServiceImpl implements VaccinationService {
                 && vaccination.getConfirmedAt() == null
                 && vaccination.getActualDate() == null;
     }
+
+    @Override
+    @Transactional
+    public String switchScheduleMode(UserPrincipal principal, Long petId, Pet.VaccineScheduleMode mode) {
+        Pet pet = ensureCanEdit(principal, petId);
+        if (pet.getVaccineScheduleMode() == mode) {
+            return mode == Pet.VaccineScheduleMode.AUTOMATIC
+                    ? "Đang ở chế độ Tự động rồi"
+                    : "Đang ở chế độ Thủ công rồi";
+        }
+
+        if (mode == Pet.VaccineScheduleMode.MANUAL) {
+            // Chuyển từ TỰ ĐỘNG → THỦ CÔNG: Xóa tất cả mũi chưa tiêm do hệ thống tạo
+            List<PetVaccination> uncompleted = vaccinationRepository.findByPetIdOrderByScheduledDateAsc(petId)
+                    .stream()
+                    .filter(v -> v.getStatus() != PetVaccination.VaccinationStatus.completed
+                            && v.getStatus() != PetVaccination.VaccinationStatus.skipped
+                            && v.getScheduleSource() == PetVaccination.ScheduleSource.AUTO_TEMPLATE)
+                    .toList();
+            for (PetVaccination v : uncompleted) {
+                reminderSynchronizationService.cancelVaccinationReminders(v);
+            }
+            if (!uncompleted.isEmpty()) {
+                vaccinationRepository.deleteAll(uncompleted);
+                vaccinationRepository.flush();
+            }
+            pet.setVaccineScheduleMode(Pet.VaccineScheduleMode.MANUAL);
+            pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.ACTIVE);
+        } else {
+            // Chuyển từ THỦ CÔNG → TỰ ĐỘNG: Giữ nguyên dữ liệu, reset trạng thái để Setup lại
+            pet.setVaccineScheduleMode(Pet.VaccineScheduleMode.AUTOMATIC);
+            pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.NOT_CONFIGURED);
+        }
+
+        petRepository.save(pet);
+        return mode == Pet.VaccineScheduleMode.MANUAL
+                ? "Đã chuyển sang chế độ Thủ công"
+                : "Đã chuyển sang chế độ Tự động";
+    }
+
+    @Override
+    @Transactional
+    public void deleteVaccination(UserPrincipal principal, Long petId, Long vaccinationId) {
+        ensureCanEdit(principal, petId);
+        PetVaccination vaccination = getVaccinationForPet(petId, vaccinationId);
+
+        if (vaccination.getStatus() == PetVaccination.VaccinationStatus.completed) {
+            throw new BadRequestException("Không thể xóa mũi tiêm đã hoàn thành");
+        }
+
+        reminderSynchronizationService.cancelVaccinationReminders(vaccination);
+        vaccinationRepository.delete(vaccination);
+    }
 }

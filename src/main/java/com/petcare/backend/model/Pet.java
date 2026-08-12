@@ -77,6 +77,10 @@ public class Pet {
     @Column(name = "vaccine_plan_status", length = 30)
     private VaccinePlanStatus vaccinePlanStatus = VaccinePlanStatus.NOT_CONFIGURED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vaccine_schedule_mode", length = 20, nullable = false)
+    private VaccineScheduleMode vaccineScheduleMode = VaccineScheduleMode.AUTOMATIC;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -105,5 +109,10 @@ public class Pet {
 
     public enum VaccinePlanStatus {
         NOT_CONFIGURED, PROPOSED, ACTIVE, REVIEW_REQUIRED
+    }
+
+    public enum VaccineScheduleMode {
+        AUTOMATIC,  // Hệ thống tự sinh lịch tiêm dựa trên tuổi + lịch sử
+        MANUAL      // Người dùng tự thêm/xóa từng mũi tiêm
     }
 }

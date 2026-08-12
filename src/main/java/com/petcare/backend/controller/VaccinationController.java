@@ -173,4 +173,26 @@ public class VaccinationController {
                 vaccinationService.rescheduleVaccination(principal, petId, vaccinationId, request)
         ));
     }
+
+    @PatchMapping("/schedule-mode")
+    @Operation(summary = "Chuyển đổi chế độ lịch tiêm (Tự động / Thủ công)")
+    public ResponseEntity<ApiResponse<String>> switchScheduleMode(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @RequestParam com.petcare.backend.model.Pet.VaccineScheduleMode mode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                vaccinationService.switchScheduleMode(principal, petId, mode),
+                mode.name()
+        ));
+    }
+
+    @DeleteMapping("/{vaccinationId}")
+    @Operation(summary = "Xóa một mũi tiêm (chỉ cho phép ở chế độ thủ công)")
+    public ResponseEntity<ApiResponse<Void>> deleteVaccination(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long vaccinationId) {
+        vaccinationService.deleteVaccination(principal, petId, vaccinationId);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa mũi tiêm thành công", null));
+    }
 }

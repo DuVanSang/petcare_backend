@@ -41,6 +41,14 @@ public class UserController {
         ));
     }
 
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy thông tin người dùng thành công",
+                userService.getUserById(userId)
+        ));
+    }
+
     @PatchMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @AuthenticationPrincipal UserPrincipal principal,

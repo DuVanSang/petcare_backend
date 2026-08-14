@@ -34,6 +34,34 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
 
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Transactional
+    public void migrateUserPreferencesDefaults() {
+        List<User> users = userRepository.findAll();
+        for (User u : users) {
+            boolean updated = false;
+            if (u.getEmailAlertsEnabled() == null || !u.getEmailAlertsEnabled()) {
+                u.setEmailAlertsEnabled(true);
+                updated = true;
+            }
+            if (u.getReminderAlertsEnabled() == null || !u.getReminderAlertsEnabled()) {
+                u.setReminderAlertsEnabled(true);
+                updated = true;
+            }
+            if (u.getPublicProfileEnabled() == null || !u.getPublicProfileEnabled()) {
+                u.setPublicProfileEnabled(true);
+                updated = true;
+            }
+            if (u.getShareLocationEnabled() == null || !u.getShareLocationEnabled()) {
+                u.setShareLocationEnabled(true);
+                updated = true;
+            }
+            if (updated) {
+                userRepository.save(u);
+            }
+        }
+    }
+
     @Override
     public UserResponse getCurrentUser(UserPrincipal principal) {
         return UserResponse.from(getUserOrThrow(principal.getId()));
@@ -127,6 +155,21 @@ public class UserServiceImpl implements UserService {
 
         if (request.getPushNotificationEnabled() != null) {
             user.setPushNotificationEnabled(request.getPushNotificationEnabled());
+        }
+        if (request.getEmailAlertsEnabled() != null) {
+            user.setEmailAlertsEnabled(request.getEmailAlertsEnabled());
+        }
+        if (request.getReminderAlertsEnabled() != null) {
+            user.setReminderAlertsEnabled(request.getReminderAlertsEnabled());
+        }
+        if (request.getPublicProfileEnabled() != null) {
+            user.setPublicProfileEnabled(request.getPublicProfileEnabled());
+        }
+        if (request.getShareLocationEnabled() != null) {
+            user.setShareLocationEnabled(request.getShareLocationEnabled());
+        }
+        if (StringUtils.hasText(request.getPostDefaultPrivacy())) {
+            user.setPostDefaultPrivacy(request.getPostDefaultPrivacy().trim());
         }
 
         return UserResponse.from(userRepository.save(user));

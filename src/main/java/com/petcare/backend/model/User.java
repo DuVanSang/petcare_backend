@@ -77,6 +77,21 @@ public class User {
     @Column(name = "push_notification_enabled", nullable = false)
     private Boolean pushNotificationEnabled = true;
 
+    @Column(name = "email_alerts_enabled", nullable = false)
+    private Boolean emailAlertsEnabled = true;
+
+    @Column(name = "reminder_alerts_enabled", nullable = false)
+    private Boolean reminderAlertsEnabled = true;
+
+    @Column(name = "public_profile_enabled", nullable = false)
+    private Boolean publicProfileEnabled = true;
+
+    @Column(name = "share_location_enabled", nullable = false)
+    private Boolean shareLocationEnabled = true;
+
+    @Column(name = "post_default_privacy", nullable = false, length = 20)
+    private String postDefaultPrivacy = "friends";
+
     @Column(nullable = false)
     private String role = "user";
 

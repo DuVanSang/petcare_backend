@@ -34,4 +34,5 @@ public class AdminUpdateUserRequest {
     private String role;
     private String status;
     private Boolean emailVerified;
+    private String avatarUrl;
 }

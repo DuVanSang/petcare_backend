@@ -8,13 +8,16 @@ import com.petcare.backend.dto.admin.user.response.AdminUserDetailResponse;
 import com.petcare.backend.dto.admin.user.response.AdminUserResponse;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.common.PageResponse;
+import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.AdminUserService;
+import com.petcare.backend.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,7 +28,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
@@ -35,6 +40,18 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class AdminUserController {
     private final AdminUserService adminUserService;
+    private final FileStorageService fileStorageService;
+
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải ảnh đại diện người dùng")
+    public ResponseEntity<ApiResponse<UploadFileResponse>> uploadUserAvatar(
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tải ảnh đại diện thành công",
+                fileStorageService.storeUserProfileImage(file, null, "avatar")
+        ));
+    }
 
     @GetMapping
     @Operation(summary = "Lấy danh sách người dùng")

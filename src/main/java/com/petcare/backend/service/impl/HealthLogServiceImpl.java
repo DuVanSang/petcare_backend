@@ -1,6 +1,7 @@
 package com.petcare.backend.service.impl;
 
 import com.petcare.backend.dto.health.request.CreateHealthLogRequest;
+import com.petcare.backend.dto.health.request.UpdateHealthLogRequest;
 import com.petcare.backend.dto.health.response.HealthLogResponse;
 import com.petcare.backend.dto.health.response.TimelineEventResponse;
 import com.petcare.backend.dto.health.response.WeightLogResponse;
@@ -81,6 +82,52 @@ public class HealthLogServiceImpl implements HealthLogService {
         petTimelineEventRepository.save(event);
 
         return HealthLogResponse.from(savedHealthLog, request.getWeight(), pet.getCurrentWeight());
+    }
+
+    @Override
+    @Transactional
+    public HealthLogResponse updateHealthLog(UserPrincipal principal, Long logId, UpdateHealthLogRequest request) {
+        Long userId = principal.getId();
+        HealthLog healthLog = healthLogRepository.findById(logId)
+                .orElseThrow(() -> new BadRequestException("Hồ sơ sức khỏe không tồn tại"));
+
+        Pet pet = getAccessiblePet(healthLog.getPet().getId(), userId);
+        assertCanEdit(pet, userId);
+
+        LocalDate loggedDate = request.getDate();
+        healthLog.setLoggedDate(loggedDate);
+        healthLog.setAppetite(request.getAppetite());
+        healthLog.setActivityLevel(request.getActivityLevel());
+        healthLog.setTreatmentNotes(StringUtils.hasText(request.getNotes()) ? request.getNotes().trim() : null);
+        HealthLog savedHealthLog = healthLogRepository.save(healthLog);
+
+        if (request.getWeight() != null) {
+            User user = getUser(userId);
+            WeightLog weightLog = new WeightLog();
+            weightLog.setPet(pet);
+            weightLog.setWeight(request.getWeight());
+            weightLog.setLoggedDate(loggedDate);
+            weightLog.setLoggedBy(user);
+            weightLogRepository.save(weightLog);
+
+            pet.setCurrentWeight(request.getWeight());
+            petRepository.save(pet);
+        }
+
+        return HealthLogResponse.from(savedHealthLog, request.getWeight(), pet.getCurrentWeight());
+    }
+
+    @Override
+    @Transactional
+    public void deleteHealthLog(UserPrincipal principal, Long logId) {
+        Long userId = principal.getId();
+        HealthLog healthLog = healthLogRepository.findById(logId)
+                .orElseThrow(() -> new BadRequestException("Hồ sơ sức khỏe không tồn tại"));
+
+        Pet pet = getAccessiblePet(healthLog.getPet().getId(), userId);
+        assertCanEdit(pet, userId);
+
+        healthLogRepository.delete(healthLog);
     }
 
     @Override

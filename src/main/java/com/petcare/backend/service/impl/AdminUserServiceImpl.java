@@ -107,6 +107,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setStatus(StringUtils.hasText(request.getStatus())
                 ? normalizeAllowedValue(request.getStatus(), ALLOWED_STATUSES, "Trạng thái người dùng không hợp lệ")
                 : "active");
+        if (StringUtils.hasText(request.getAvatarUrl())) {
+            user.setAvatarUrl(request.getAvatarUrl().trim());
+        }
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(LocalDateTime.now());
         return toDetailResponse(userRepository.save(user));
@@ -151,6 +154,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (request.getBio() != null) user.setBio(trimToNull(request.getBio()));
         if (request.getDateOfBirth() != null) user.setDateOfBirth(request.getDateOfBirth());
         if (request.getLocation() != null) user.setLocation(trimToNull(request.getLocation()));
+        if (request.getAvatarUrl() != null) user.setAvatarUrl(trimToNull(request.getAvatarUrl()));
 
         if (request.getEmailVerified() != null) {
             user.setEmailVerified(request.getEmailVerified());

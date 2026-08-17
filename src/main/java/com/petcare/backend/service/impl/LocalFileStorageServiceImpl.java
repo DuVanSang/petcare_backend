@@ -118,6 +118,12 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
+    public UploadFileResponse storeMomentMediaFile(MultipartFile file) {
+        validateFile(file);
+        return storeMediaFile(file, "moments", true);
+    }
+
+    @Override
     public void deleteByUrl(String fileUrl) {
         if (!StringUtils.hasText(fileUrl)) return;
         String prefix = publicUrlPrefix.replaceAll("/+$", "") + "/";

@@ -31,4 +31,5 @@ public class AdminCreateUserRequest {
 
     private String role;
     private String status;
+    private String avatarUrl;
 }

@@ -44,6 +44,7 @@ public class ReminderServiceImpl implements ReminderService {
     );
     private static final Set<CareReminderLog.ReminderLogStatus> CANCELLABLE_STATUSES = Set.of(
             CareReminderLog.ReminderLogStatus.pending,
+            CareReminderLog.ReminderLogStatus.notified,
             CareReminderLog.ReminderLogStatus.snoozed
     );
 
@@ -351,10 +352,13 @@ public class ReminderServiceImpl implements ReminderService {
     }
 
     private CareReminder getOwnedReminder(UserPrincipal principal, Long reminderId) {
-        return reminderRepository.findByIdAndCreatedById(reminderId, principal.getId())
-                .orElseThrow(() -> new BadRequestException(
-                        "Nhắc nhở không tồn tại hoặc không thuộc tài khoản của bạn"
-                ));
+        CareReminder reminder = reminderRepository.findById(reminderId)
+                .orElseThrow(() -> new BadRequestException("Nhắc nhở không tồn tại"));
+
+        if (!reminder.getCreatedBy().getId().equals(principal.getId())) {
+            ensureCanEditPet(principal, reminder.getPet().getId());
+        }
+        return reminder;
     }
 
     private CareReminderLog findCurrentActionableLog(Long reminderId) {

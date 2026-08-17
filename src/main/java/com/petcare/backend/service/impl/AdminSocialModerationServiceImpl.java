@@ -12,6 +12,7 @@ import com.petcare.backend.model.ModerationAction;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.Post;
 import com.petcare.backend.model.PostComment;
+import com.petcare.backend.model.PostMedia;
 import com.petcare.backend.model.SocialReport;
 import com.petcare.backend.model.User;
 import com.petcare.backend.model.enums.CommentStatus;
@@ -20,6 +21,7 @@ import com.petcare.backend.model.enums.PostStatus;
 import com.petcare.backend.repository.CommentReactionRepository;
 import com.petcare.backend.repository.ModerationActionRepository;
 import com.petcare.backend.repository.PostCommentRepository;
+import com.petcare.backend.repository.PostMediaRepository;
 import com.petcare.backend.repository.PostReactionRepository;
 import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.PetRepository;
@@ -46,6 +48,7 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PostRepository postRepository;
+    private final PostMediaRepository postMediaRepository;
     private final PostCommentRepository postCommentRepository;
     private final PostReactionRepository postReactionRepository;
     private final CommentReactionRepository commentReactionRepository;
@@ -198,13 +201,13 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
         Pageable pageable = PageRequest.of(validatePage(page), validateSize(size), Sort.by(Sort.Direction.DESC, "createdAt"));
         return PageResponse.from(socialReportRepository
                 .findAll(reportSpecification(status, targetType, reason, reporterId, targetId, from, to), pageable)
-                .map(SocialReportResponse::from));
+                .map(this::toReportResponse));
     }
 
     @Override
     @Transactional(readOnly = true)
     public SocialReportResponse getReportDetail(Long reportId) {
-        return SocialReportResponse.from(getReportOrThrow(reportId));
+        return toReportResponse(getReportOrThrow(reportId));
     }
 
     @Override
@@ -235,7 +238,7 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
                 moderatorUser,
                 report
         );
-        return SocialReportResponse.from(socialReportRepository.save(report));
+        return toReportResponse(socialReportRepository.save(report));
     }
 
     @Override
@@ -255,7 +258,7 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
                 moderatorUser,
                 report
         );
-        return SocialReportResponse.from(socialReportRepository.save(report));
+        return toReportResponse(socialReportRepository.save(report));
     }
 
     private Specification<Post> postSpecification(
@@ -370,12 +373,70 @@ public class AdminSocialModerationServiceImpl implements AdminSocialModerationSe
                 : petRepository.findById(post.getPetId())
                         .map(Pet::getName)
                         .orElse(null);
+        List<String> mediaUrls = postMediaRepository.findByPost_IdOrderByDisplayOrderAsc(post.getId())
+                .stream()
+                .map(PostMedia::getMediaUrl)
+                .toList();
         return AdminSocialPostResponse.from(
                 post,
                 postReactionRepository.countByPost_Id(post.getId()),
                 postCommentRepository.countByPost_IdAndStatus(post.getId(), CommentStatus.VISIBLE),
-                petName
+                petName,
+                mediaUrls
         );
+    }
+
+    private SocialReportResponse toReportResponse(SocialReport report) {
+        String targetAuthorName = null;
+        String targetAuthorEmail = null;
+        String targetPreview = null;
+        List<String> targetMediaUrls = List.of();
+
+        if (report.getTargetType() == SocialReport.ModerationTargetType.post) {
+            Post post = postRepository.findById(report.getTargetId()).orElse(null);
+            if (post != null) {
+                if (post.getUser() != null) {
+                    targetAuthorName = post.getUser().getFullName();
+                    targetAuthorEmail = post.getUser().getEmail();
+                }
+                targetPreview = post.getCaption();
+                targetMediaUrls = postMediaRepository.findByPost_IdOrderByDisplayOrderAsc(post.getId())
+                        .stream()
+                        .map(PostMedia::getMediaUrl)
+                        .toList();
+            }
+        } else if (report.getTargetType() == SocialReport.ModerationTargetType.comment) {
+            PostComment comment = postCommentRepository.findById(report.getTargetId()).orElse(null);
+            if (comment != null) {
+                if (comment.getUser() != null) {
+                    targetAuthorName = comment.getUser().getFullName();
+                    targetAuthorEmail = comment.getUser().getEmail();
+                }
+                targetPreview = comment.getCommentText();
+            }
+        }
+
+        return SocialReportResponse.builder()
+                .id(report.getId())
+                .targetType(report.getTargetType() == null ? null : report.getTargetType().name())
+                .targetId(report.getTargetId())
+                .targetAuthorName(targetAuthorName)
+                .targetAuthorEmail(targetAuthorEmail)
+                .targetPreview(targetPreview)
+                .targetMediaUrls(targetMediaUrls)
+                .reporterId(report.getReporter() == null ? null : report.getReporter().getId())
+                .reporterName(report.getReporter() == null ? null : report.getReporter().getFullName())
+                .reporterEmail(report.getReporter() == null ? null : report.getReporter().getEmail())
+                .reason(report.getReason() == null ? null : report.getReason().name())
+                .description(report.getDescription())
+                .status(report.getStatus() == null ? null : report.getStatus().name())
+                .resolvedById(report.getResolvedBy() == null ? null : report.getResolvedBy().getId())
+                .resolvedByName(report.getResolvedBy() == null ? null : report.getResolvedBy().getFullName())
+                .resolutionNote(report.getResolutionNote())
+                .resolvedAt(report.getResolvedAt())
+                .createdAt(report.getCreatedAt())
+                .updatedAt(report.getUpdatedAt())
+                .build();
     }
 
     private AdminSocialCommentResponse toCommentResponse(PostComment comment) {

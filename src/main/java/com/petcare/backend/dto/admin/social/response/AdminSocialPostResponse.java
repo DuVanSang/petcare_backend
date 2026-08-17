@@ -2,6 +2,7 @@ package com.petcare.backend.dto.admin.social.response;
 
 import com.petcare.backend.model.Post;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -20,10 +21,11 @@ public class AdminSocialPostResponse {
     private Boolean commentsLocked;
     private long reactionCount;
     private long commentCount;
+    private List<String> mediaUrls;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static AdminSocialPostResponse from(Post post, long reactionCount, long commentCount, String petName) {
+    public static AdminSocialPostResponse from(Post post, long reactionCount, long commentCount, String petName, List<String> mediaUrls) {
         return AdminSocialPostResponse.builder()
                 .id(post.getId())
                 .authorId(post.getUser() == null ? null : post.getUser().getId())
@@ -37,6 +39,7 @@ public class AdminSocialPostResponse {
                 .commentsLocked(post.getCommentsLocked())
                 .reactionCount(reactionCount)
                 .commentCount(commentCount)
+                .mediaUrls(mediaUrls)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();

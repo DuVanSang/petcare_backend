@@ -2,6 +2,7 @@ package com.petcare.backend.controller;
 
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.emr.request.CreateEmrRecordRequest;
+import com.petcare.backend.dto.emr.request.UpdateEmrRecordRequest;
 import com.petcare.backend.dto.emr.response.EmrRecordResponse;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.EmrRecordService;
@@ -13,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +43,27 @@ public class EmrRecordController {
                 "Tạo hồ sơ EMR thành công",
                 emrRecordService.createEmrRecord(principal, request)
         ));
+    }
+
+    @PutMapping("/emr-records/{emrRecordId}")
+    @Operation(summary = "Cập nhật hồ sơ EMR")
+    public ResponseEntity<ApiResponse<EmrRecordResponse>> updateEmrRecord(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long emrRecordId,
+            @Valid @RequestBody UpdateEmrRecordRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật hồ sơ EMR thành công",
+                emrRecordService.updateEmrRecord(principal, emrRecordId, request)
+        ));
+    }
+
+    @DeleteMapping("/emr-records/{emrRecordId}")
+    @Operation(summary = "Xóa hồ sơ EMR")
+    public ResponseEntity<ApiResponse<Void>> deleteEmrRecord(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long emrRecordId) {
+        emrRecordService.deleteEmrRecord(principal, emrRecordId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa hồ sơ EMR thành công", null));
     }
 
     @GetMapping("/pets/{petId}/emr-records")

@@ -68,6 +68,35 @@ class ReminderScheduleCalculatorTest {
                 .isEqualTo(LocalDate.of(2025, 2, 28));
     }
 
+    // EP: one-time reminders have no next occurrence.
+    @Test
+    void onceReminder_HasNoNextDue() {
+        CareReminder reminder = reminder(LocalDate.of(2026, 1, 1), CareReminder.ReminderFrequency.once);
+        assertThat(calculator.nextDue(reminder, calculator.toInstant(reminder.getStartDate(), reminder.getReminderTime(), reminder.getTimezone())))
+                .isNull();
+    }
+
+    // BVA: daily and weekly frequencies advance exactly one calendar unit.
+    @Test
+    void dailyAndWeeklyReminders_AdvanceByExpectedBoundary() {
+        Instant current = calculator.toInstant(LocalDate.of(2026, 3, 1), LocalTime.NOON, "Asia/Ho_Chi_Minh");
+        CareReminder daily = reminder(LocalDate.of(2026, 3, 1), CareReminder.ReminderFrequency.daily);
+        CareReminder weekly = reminder(LocalDate.of(2026, 3, 1), CareReminder.ReminderFrequency.weekly);
+        assertThat(calculator.toLocalDate(calculator.nextDue(daily, current), daily.getTimezone())).isEqualTo(LocalDate.of(2026, 3, 2));
+        assertThat(calculator.toLocalDate(calculator.nextDue(weekly, current), weekly.getTimezone())).isEqualTo(LocalDate.of(2026, 3, 8));
+    }
+
+    // BVA: an end date equal to next due permits it; a prior end date excludes it.
+    @Test
+    void recurringReminder_RespectsEndDateBoundary() {
+        CareReminder reminder = reminder(LocalDate.of(2026, 3, 1), CareReminder.ReminderFrequency.daily);
+        Instant current = calculator.toInstant(LocalDate.of(2026, 3, 1), LocalTime.of(9, 0), reminder.getTimezone());
+        reminder.setEndDate(LocalDate.of(2026, 3, 2));
+        assertThat(calculator.nextDue(reminder, current)).isNotNull();
+        reminder.setEndDate(LocalDate.of(2026, 3, 1));
+        assertThat(calculator.nextDue(reminder, current)).isNull();
+    }
+
     private CareReminder reminder(LocalDate startDate, CareReminder.ReminderFrequency frequency) {
         CareReminder reminder = new CareReminder();
         reminder.setStartDate(startDate);

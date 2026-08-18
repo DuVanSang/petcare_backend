@@ -60,6 +60,14 @@ public class PetMomentController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách khoảnh khắc thành công", response));
     }
 
+    @GetMapping("/my-moments")
+    public ResponseEntity<ApiResponse<List<PetMomentResponse>>> getMyMomentsHistory(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        List<PetMomentResponse> response = momentService.getMyMomentsHistory(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử khoảnh khắc của bạn thành công", response));
+    }
+
     @GetMapping("/pet/{petId}")
     public ResponseEntity<ApiResponse<List<PetMomentResponse>>> getPetMomentsHistory(
             @AuthenticationPrincipal UserPrincipal principal,

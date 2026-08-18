@@ -11,6 +11,8 @@ public interface PetMomentRepository extends JpaRepository<PetMoment, Long> {
 
     List<PetMoment> findByPetIdOrderByCreatedAtDesc(Long petId);
 
+    List<PetMoment> findByUserIdOrderByCreatedAtDesc(Long userId);
+
     @Query("""
         SELECT DISTINCT m FROM PetMoment m
         JOIN FETCH m.pet p

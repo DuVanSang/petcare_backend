@@ -19,6 +19,8 @@ public interface PetMomentService {
 
     List<PetMomentResponse> getFeedMoments(Long currentUserId);
 
+    List<PetMomentResponse> getMyMomentsHistory(Long currentUserId);
+
     List<PetMomentResponse> getPetMomentsHistory(Long currentUserId, Long petId);
 
     PetMomentReactionDto reactToMoment(Long currentUserId, Long momentId, String emoji);

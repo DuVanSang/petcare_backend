@@ -114,6 +114,25 @@ public class PetMomentServiceImpl implements PetMomentService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PetMomentResponse> getMyMomentsHistory(Long currentUserId) {
+        List<PetMoment> moments = momentRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
+        if (moments.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> momentIds = moments.stream().map(PetMoment::getId).toList();
+        List<PetMomentReaction> allReactions = reactionRepository.findByMomentIdIn(momentIds);
+
+        Map<Long, List<PetMomentReaction>> reactionsByMoment = allReactions.stream()
+                .collect(Collectors.groupingBy(r -> r.getMoment().getId()));
+
+        return moments.stream()
+                .map(m -> mapToResponse(m, currentUserId, reactionsByMoment.getOrDefault(m.getId(), List.of())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PetMomentResponse> getPetMomentsHistory(Long currentUserId, Long petId) {
         Pet pet = petRepository.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Thú cưng không tồn tại"));

@@ -12,6 +12,8 @@ import com.petcare.backend.dto.admin.user.request.AdminUpdateUserStatusRequest;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.exception.ResourceNotFoundException;
 import com.petcare.backend.model.User;
+import com.petcare.backend.repository.PetRepository;
+import com.petcare.backend.repository.PostRepository;
 import com.petcare.backend.repository.UserDeviceRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.security.UserPrincipal;
@@ -33,6 +35,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -40,10 +43,13 @@ import org.springframework.data.jpa.domain.Specification;
 class AdminUserServiceImplTest {
     @Mock private UserRepository users;
     @Mock private UserDeviceRepository devices;
+    @Mock private PetRepository pets;
+    @Mock private PostRepository posts;
+    @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserPrincipal principal;
     private AdminUserServiceImpl service;
 
-    @BeforeEach void setUp() { service = new AdminUserServiceImpl(users, devices); }
+    @BeforeEach void setUp() { service = new AdminUserServiceImpl(users, devices, pets, posts, passwordEncoder); }
 
     @Test
     void getUsersMapsDataAppliesAllFiltersAndCapsSize() {
@@ -95,8 +101,8 @@ class AdminUserServiceImplTest {
         User self = user(1L, "admin", "active"); when(users.findById(1L)).thenReturn(Optional.of(self)); when(principal.getId()).thenReturn(1L);
         assertThrows(BadRequestException.class, () -> service.updateUserRole(principal, 1L, roleRequest("moderator")));
         User admin = user(2L, "admin", "active"); when(users.findById(2L)).thenReturn(Optional.of(admin)); when(users.countByRoleAndStatusAndDeletedAtIsNull("admin", "active")).thenReturn(2L); when(users.save(admin)).thenReturn(admin); when(devices.findByUserId(2L)).thenReturn(List.of());
-        var detail = service.updateUserRole(principal, 2L, roleRequest(" MODERATOR "));
-        assertEquals("moderator", admin.getRole()); assertEquals("moderator", detail.getRole()); verify(users).save(admin);
+        var detail = service.updateUserRole(principal, 2L, roleRequest(" USER "));
+        assertEquals("user", admin.getRole()); assertEquals("user", detail.getRole()); verify(users).save(admin);
         assertThrows(BadRequestException.class, () -> service.updateUserRole(principal, 2L, roleRequest("invalid")));
         assertThrows(BadRequestException.class, () -> service.updateUserRole(principal, 2L, roleRequest(" ")));
     }

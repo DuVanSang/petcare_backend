@@ -105,15 +105,16 @@ class VaccinationServiceImplTest {
     }
 
     @Test
-    void setupPlanRejectsPetThatAlreadyHasVaccinationRows() {
+    void setupPlanDeletesUncompletedExistingRowsAndRegeneratesSchedule() {
         SetupVaccinationPlanRequest request = setupRequest();
-        when(vaccinationRepository.existsByPetId(20L)).thenReturn(true);
+        PetVaccination existing = vaccination(PetVaccination.VaccinationStatus.scheduled);
+        when(vaccinationRepository.findByPetIdOrderByScheduledDateAsc(20L)).thenReturn(List.of(existing), List.of());
 
-        assertThatThrownBy(() -> service.setupPlan(principal, 20L, request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Kế hoạch tiêm của thú cưng đã được thiết lập");
+        assertThat(service.setupPlan(principal, 20L, request)).isEmpty();
 
-        verify(vaccineScheduleService, never()).generateProposedSchedule(pet, request.getHistories());
+        verify(reminderSynchronizationService).cancelVaccinationReminders(existing);
+        verify(vaccinationRepository).deleteAll(List.of(existing));
+        verify(vaccineScheduleService).generateProposedSchedule(pet, request.getHistories());
     }
 
     @Test
@@ -224,7 +225,8 @@ class VaccinationServiceImplTest {
 
     @Test void setupAndConfirmPlan_StatusAndUserPartitions() {
         pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.PROPOSED);
-        assertThatThrownBy(() -> service.setupPlan(principal,20L,setupRequest())).isInstanceOf(BadRequestException.class);
+        when(vaccinationRepository.findByPetIdOrderByScheduledDateAsc(20L)).thenReturn(List.of());
+        service.setupPlan(principal,20L,setupRequest());
         pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.NOT_CONFIGURED);
         when(userRepository.findById(10L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.confirmPlan(principal,20L,new ConfirmVaccinationPlanRequest())).isInstanceOf(BadRequestException.class);

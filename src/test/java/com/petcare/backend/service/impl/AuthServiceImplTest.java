@@ -43,6 +43,8 @@ class AuthServiceImplTest {
         ReflectionTestUtils.setField(service, "refreshTokenExpirationMs", 60_000L);
         ReflectionTestUtils.setField(service, "passwordResetOtpExpirationMinutes", 10L);
         when(refreshTokens.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(refreshTokens.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
     }
     private User user(long id) { User u=new User();u.setId(id);u.setEmail("user"+id+"@test.com");u.setFullName("User "+id);u.setStatus("active");u.setEmailVerified(true);return u; }
     private RegisterRequest register(String email) { return RegisterRequest.builder().email(email).password("password1").fullName(" Name ").phoneNumber(" ").build(); }
@@ -61,13 +63,13 @@ class AuthServiceImplTest {
     }
     @Test void verifyAndResend_VerifyCreatesTokensAndRejectsAlreadyVerified() {
         User u=user(1);u.setEmailVerified(false);when(users.findByEmail("user@test.com")).thenReturn(Optional.of(u));when(users.save(u)).thenReturn(u);when(jwt.generateToken(any())).thenReturn("access");VerifyEmailRequest verifyRequest=new VerifyEmailRequest();verifyRequest.setEmail("USER@test.com");verifyRequest.setOtpCode("123456");
-        assertThat(service.verifyEmail(verifyRequest).getAccessToken()).isEqualTo("access");assertThat(u.getEmailVerified()).isTrue();verify(verification).verify(u,"123456");verify(refreshTokens).save(any());
+        assertThat(service.verifyEmail(verifyRequest).getAccessToken()).isEqualTo("access");assertThat(u.getEmailVerified()).isTrue();verify(verification).verify(u,"123456");verify(refreshTokens).saveAndFlush(any());
         u.setEmailVerified(true);ResendVerificationRequest resend=new ResendVerificationRequest();resend.setEmail("user@test.com");assertThatThrownBy(()->service.resendVerificationCode(resend)).isInstanceOf(BadRequestException.class);u.setEmailVerified(false);service.resendVerificationCode(resend);verify(verification).createOtp(u);
     }
     @Test void login_SucceedsAndRejectsInactiveOrUnverifiedUsers() {
         User u=user(1);UserPrincipal principal=UserPrincipal.from(u);Authentication auth=mock(Authentication.class);when(auth.getPrincipal()).thenReturn(principal);when(authenticationManager.authenticate(any())).thenReturn(auth);when(users.findByEmail(u.getEmail())).thenReturn(Optional.of(u));when(jwt.generateToken(principal)).thenReturn("access");LoginRequest request=login(u.getEmail());
         assertThat(service.login(request).getAccessToken()).isEqualTo("access");
-        u.setEmailVerified(false);assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);u.setEmailVerified(true);u.setStatus("banned");assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);
+        u.setEmailVerified(false);assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(com.petcare.backend.exception.EmailNotVerifiedException.class);u.setEmailVerified(true);u.setStatus("banned");assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);
     }
     @Test void login_RejectsMissingUser() {
         User u=user(1);Authentication auth=mock(Authentication.class);when(auth.getPrincipal()).thenReturn(UserPrincipal.from(u));when(authenticationManager.authenticate(any())).thenReturn(auth);when(users.findByEmail(u.getEmail())).thenReturn(Optional.empty());assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);

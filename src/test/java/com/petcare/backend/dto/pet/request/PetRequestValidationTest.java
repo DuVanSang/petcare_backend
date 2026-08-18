@@ -26,7 +26,7 @@ class PetRequestValidationTest {
         request.setDateOfBirth(null); assertThat(request.isValidDateOfBirth()).isTrue();
         request.setName(" "); request.setSpeciesId(null); request.setEstimatedAgeMonths(-1); request.setCurrentWeight(BigDecimal.ZERO);
         assertThat(validator.validate(request)).extracting(v -> v.getPropertyPath().toString())
-                .contains("name", "speciesId", "estimatedAgeMonths", "currentWeight");
+                .contains("name", "validSpecies", "estimatedAgeMonths", "currentWeight");
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.EmailVerificationToken;
 import com.petcare.backend.model.User;
 import com.petcare.backend.repository.EmailVerificationTokenRepository;
+import com.petcare.backend.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -22,10 +23,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceImplTest {
     @Mock EmailVerificationTokenRepository tokens;
+    @Mock UserRepository users;
     private EmailVerificationServiceImpl service;
 
     @BeforeEach void setUp() {
-        service = new EmailVerificationServiceImpl(tokens);
+        service = new EmailVerificationServiceImpl(tokens, users);
         ReflectionTestUtils.setField(service, "otpExpirationMinutes", 10L);
     }
 

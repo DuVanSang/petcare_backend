@@ -19,11 +19,9 @@ import com.petcare.backend.model.HealthCondition;
 import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetCoParent;
 import com.petcare.backend.model.PetTimelineEvent;
-import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.Species;
 import com.petcare.backend.model.User;
 import com.petcare.backend.model.WeightLog;
-import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.repository.BreedRepository;
 import com.petcare.backend.repository.CoParentInvitationRepository;
 import com.petcare.backend.repository.HealthConditionRepository;
@@ -33,8 +31,6 @@ import com.petcare.backend.repository.PetTimelineEventRepository;
 import com.petcare.backend.repository.SpeciesRepository;
 import com.petcare.backend.repository.UserRepository;
 import com.petcare.backend.repository.WeightLogRepository;
-import com.petcare.backend.repository.PetVaccinationRepository;
-import com.petcare.backend.repository.VaccineTemplateRepository;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.FileStorageService;
 import com.petcare.backend.service.NotificationService;
@@ -76,8 +72,6 @@ public class PetServiceImpl implements PetService {
     private final PetTimelineEventRepository petTimelineEventRepository;
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
-    private final PetVaccinationRepository petVaccinationRepository;
-    private final VaccineTemplateRepository vaccineTemplateRepository;
 
     // ========================
     // PET CRUD
@@ -107,7 +101,8 @@ public class PetServiceImpl implements PetService {
             if (uploadedAvatarUrl != null) pet.setAvatarUrl(uploadedAvatarUrl);
             else if (StringUtils.hasText(request.getAvatarUrl())) pet.setAvatarUrl(request.getAvatarUrl().trim());
 
-            applyPetFields(pet, request.getSpeciesId(), request.getBreedId(), request.getCustomBreedName(),
+            applyPetFields(pet, request.getSpeciesId(), request.getCustomSpeciesName(),
+                    request.getBreedId(), request.getCustomBreedName(),
                     request.getGender(), request.getDateOfBirth(), request.getEstimatedAgeMonths(),
                     request.getCurrentWeight(), request.getColorFeatures(), request.getSpayedStatus(),
                     request.getNotes(), request.getStatus());
@@ -173,7 +168,7 @@ public class PetServiceImpl implements PetService {
             pet.setName(request.getName().trim());
         }
 
-        applyPetFields(pet, request.getSpeciesId(), request.getBreedId(),
+        applyPetFields(pet, request.getSpeciesId(), request.getCustomSpeciesName(), request.getBreedId(),
                 request.getCustomBreedName(),
                 request.getGender(), request.getDateOfBirth(),
                 request.getEstimatedAgeMonths(), request.getCurrentWeight(),
@@ -442,16 +437,18 @@ public class PetServiceImpl implements PetService {
                 .orElse("viewer");
     }
 
-    private void applyPetFields(Pet pet, Long speciesId, Long breedId, String customBreedName,
+    private void applyPetFields(Pet pet, Long speciesId, String customSpeciesName, Long breedId, String customBreedName,
                                 Pet.Gender gender, java.time.LocalDate dateOfBirth,
                                 Integer estimatedAgeMonths, java.math.BigDecimal currentWeight,
                                 String colorFeatures, Pet.SpayedStatus spayedStatus,
                                 String notes, Pet.PetStatus status) {
 
-        if (speciesId != null) {
+        if (speciesId != null && speciesId > 0) {
             Species species = speciesRepository.findById(speciesId)
                     .orElseThrow(() -> new BadRequestException("Loài không tồn tại"));
             pet.setSpecies(species);
+        } else if (StringUtils.hasText(customSpeciesName)) {
+            pet.setSpecies(resolveCustomSpecies(customSpeciesName));
         }
 
         if (breedId != null) {
@@ -463,7 +460,12 @@ public class PetServiceImpl implements PetService {
             pet.setBreed(breed);
             applyCustomBreedName(pet, breed, customBreedName);
         } else if (StringUtils.hasText(customBreedName)) {
-            throw new BadRequestException("Không thể nhập giống tự do khi chưa chọn giống từ danh sách");
+            if (pet.getSpecies() == null) {
+                throw new BadRequestException("Vui lòng chọn loài trước khi nhập giống");
+            }
+            Breed breed = resolveCustomBreed(pet.getSpecies(), customBreedName);
+            pet.setBreed(breed);
+            pet.setCustomBreedName(null);
         }
 
         if (gender != null) pet.setGender(gender);
@@ -474,6 +476,29 @@ public class PetServiceImpl implements PetService {
         if (spayedStatus != null) pet.setSpayedStatus(spayedStatus);
         if (StringUtils.hasText(notes)) pet.setNotes(notes);
         if (status != null) pet.setStatus(status);
+    }
+
+    private Species resolveCustomSpecies(String customSpeciesName) {
+        String normalizedName = customSpeciesName.trim();
+        return speciesRepository.findByNameIgnoreCase(normalizedName)
+                .orElseGet(() -> {
+                    Species species = new Species();
+                    species.setName(normalizedName);
+                    species.setActive(true);
+                    return speciesRepository.save(species);
+                });
+    }
+
+    private Breed resolveCustomBreed(Species species, String customBreedName) {
+        String normalizedName = customBreedName.trim();
+        return breedRepository.findBySpeciesIdAndNameIgnoreCase(species.getId(), normalizedName)
+                .orElseGet(() -> {
+                    Breed breed = new Breed();
+                    breed.setSpecies(species);
+                    breed.setName(normalizedName);
+                    breed.setActive(true);
+                    return breedRepository.save(breed);
+                });
     }
 
     private void initializePetRecords(Pet pet, User owner, CreatePetRequest request) {
@@ -488,8 +513,6 @@ public class PetServiceImpl implements PetService {
             weightLog.setLoggedBy(owner);
             weightLogRepository.save(weightLog);
         }
-
-        if (pet.getSpecies() != null) generateVaccinationSchedule(pet);
 
         PetTimelineEvent event = new PetTimelineEvent();
         event.setPet(pet);
@@ -550,21 +573,6 @@ public class PetServiceImpl implements PetService {
                     condition.setIsActive(true);
                     healthConditionRepository.save(condition);
                 });
-    }
-
-    private void generateVaccinationSchedule(Pet pet) {
-        LocalDate birth = pet.getDateOfBirth() != null ? pet.getDateOfBirth()
-                : pet.getEstimatedAgeMonths() != null && pet.getEstimatedAgeMonths() > 0
-                ? LocalDate.now().minusMonths(pet.getEstimatedAgeMonths()) : LocalDate.now();
-        for (VaccineTemplate template : vaccineTemplateRepository.findBySpeciesId(pet.getSpecies().getId())) {
-            if (!Boolean.TRUE.equals(template.getActive())) continue;
-            com.petcare.backend.model.PetVaccination vaccination = new com.petcare.backend.model.PetVaccination();
-            vaccination.setPet(pet); vaccination.setVaccineTemplate(template);
-            vaccination.setVaccineName(template.getVaccineName()); vaccination.setDoseNumber(template.getDoseNumber());
-            vaccination.setStatus(com.petcare.backend.model.PetVaccination.VaccinationStatus.scheduled);
-            vaccination.setScheduledDate(birth.plusWeeks(template.getRecommendedAgeWeeks()));
-            petVaccinationRepository.save(vaccination);
-        }
     }
 
     private String generateInviteCode() {

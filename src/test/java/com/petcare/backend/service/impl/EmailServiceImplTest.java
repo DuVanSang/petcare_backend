@@ -34,16 +34,14 @@ class EmailServiceImplTest {
         verifyNoInteractions(provider, mailSender);
     }
 
-    @Test void smtpProviderRejectsMissingSenderOrSenderEmailWithoutSending() {
+    @Test void smtpProviderFallsBackWhenSenderOrSenderEmailIsMissing() {
         ReflectionTestUtils.setField(service, "mailProvider", "SMTP");
         when(provider.getIfAvailable()).thenReturn(null);
-        assertThatThrownBy(() -> service.sendVerificationOtp("pet@example.com", "123456"))
-                .isInstanceOf(BadRequestException.class);
+        assertThat(service.sendVerificationOtp("pet@example.com", "123456")).isFalse();
 
         when(provider.getIfAvailable()).thenReturn(mailSender);
         ReflectionTestUtils.setField(service, "senderEmail", "  ");
-        assertThatThrownBy(() -> service.sendPasswordResetOtp("pet@example.com", "654321"))
-                .isInstanceOf(BadRequestException.class);
+        assertThat(service.sendPasswordResetOtp("pet@example.com", "654321")).isFalse();
         verifyNoInteractions(mailSender);
     }
 

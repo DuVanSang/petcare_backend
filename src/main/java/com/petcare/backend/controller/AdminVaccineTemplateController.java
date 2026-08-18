@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/vaccine-templates")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin - Vaccine Templates", description = "Quản lý cấu hình phác đồ vaccine")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminVaccineTemplateController {

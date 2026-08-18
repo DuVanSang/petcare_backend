@@ -395,7 +395,8 @@ class ReminderServiceImplTest {
     }
 
     private void arrangeOwned(CareReminder reminder) {
-        when(principal.getId()).thenReturn(1L); when(reminderRepository.findByIdAndCreatedById(5L, 1L)).thenReturn(Optional.of(reminder));
+        reminder.setCreatedBy(pet.getOwner());
+        when(principal.getId()).thenReturn(1L); when(reminderRepository.findById(5L)).thenReturn(Optional.of(reminder));
     }
 
     private void arrangeEditableOwner() {

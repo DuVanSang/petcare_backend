@@ -10,6 +10,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.petcare.backend.model.Notification;
+import com.petcare.backend.model.User;
 import com.petcare.backend.model.UserDevice;
 import com.petcare.backend.repository.UserDeviceRepository;
 import com.petcare.backend.service.PushNotificationSender;
@@ -38,6 +39,16 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
     @Transactional
     public void send(Notification notification) {
         if (notification == null || notification.getReceiver() == null) {
+            return;
+        }
+
+        User receiver = notification.getReceiver();
+        String type = notification.getType();
+        
+        // If it's a reminder notification, check if the user has disabled reminders
+        boolean isReminder = type != null && (type.contains("reminder") || type.equals("vaccination_consultation"));
+        if (isReminder && Boolean.FALSE.equals(receiver.getReminderAlertsEnabled())) {
+            log.info("Bỏ qua gửi push notification loại {} vì user {} đã tắt nhắc nhở", type, receiver.getId());
             return;
         }
 
@@ -87,6 +98,8 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
                         .setNotification(AndroidNotification.builder()
                                 .setSound("default")
                                 .setClickAction("PETCARE_NOTIFICATION")
+                                .setIcon("notification_icon")
+                                .setColor("#1E90FF")
                                 .build())
                         .build())
                 .setApnsConfig(ApnsConfig.builder()

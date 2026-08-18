@@ -33,9 +33,16 @@ public class AdminUserDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
+    private Long petCount;
+    private Long postCount;
     private List<UserDeviceResponse> devices;
 
-    public static AdminUserDetailResponse from(User user, List<UserDeviceResponse> devices) {
+    public static AdminUserDetailResponse from(
+            User user,
+            List<UserDeviceResponse> devices,
+            Long petCount,
+            Long postCount
+    ) {
         return AdminUserDetailResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -59,6 +66,8 @@ public class AdminUserDetailResponse {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .deletedAt(user.getDeletedAt())
+                .petCount(petCount)
+                .postCount(postCount)
                 .devices(devices)
                 .build();
     }

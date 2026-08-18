@@ -22,6 +22,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,6 +62,16 @@ public class VaccinationController {
                 "Kích hoạt lịch tiêm thành công",
                 vaccinationService.confirmPlan(principal, petId, request)
         ));
+    }
+
+    @DeleteMapping("/reset-plan")
+    @PostMapping("/reset-plan")
+    @Operation(summary = "Xóa và thiết lập lại kế hoạch tiêm từ đầu")
+    public ResponseEntity<ApiResponse<Void>> resetPlan(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId) {
+        vaccinationService.resetPlan(principal, petId);
+        return ResponseEntity.ok(ApiResponse.success("Đã đặt lại kế hoạch tiêm thành công", null));
     }
 
     @GetMapping
@@ -161,5 +172,27 @@ public class VaccinationController {
                 "Dời lịch tiêm thành công",
                 vaccinationService.rescheduleVaccination(principal, petId, vaccinationId, request)
         ));
+    }
+
+    @PatchMapping("/schedule-mode")
+    @Operation(summary = "Chuyển đổi chế độ lịch tiêm (Tự động / Thủ công)")
+    public ResponseEntity<ApiResponse<String>> switchScheduleMode(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @RequestParam com.petcare.backend.model.Pet.VaccineScheduleMode mode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                vaccinationService.switchScheduleMode(principal, petId, mode),
+                mode.name()
+        ));
+    }
+
+    @DeleteMapping("/{vaccinationId}")
+    @Operation(summary = "Xóa một mũi tiêm (chỉ cho phép ở chế độ thủ công)")
+    public ResponseEntity<ApiResponse<Void>> deleteVaccination(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long vaccinationId) {
+        vaccinationService.deleteVaccination(principal, petId, vaccinationId);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa mũi tiêm thành công", null));
     }
 }

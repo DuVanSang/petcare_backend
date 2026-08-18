@@ -1,13 +1,12 @@
 package com.petcare.backend.dto.pet.request;
 
 import com.petcare.backend.model.Pet;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +17,7 @@ import lombok.Setter;
 @Setter
 public class CreatePetRequest {
     private static final LocalDate MIN_PET_BIRTH_DATE = LocalDate.of(1900, 1, 1);
+
     @NotBlank(message = "Tên thú cưng không được để trống")
     @Size(max = 100, message = "Tên thú cưng không được quá 100 ký tự")
     private String name;
@@ -25,8 +25,10 @@ public class CreatePetRequest {
     @Size(max = 500, message = "URL ảnh không được quá 500 ký tự")
     private String avatarUrl;
 
-    @NotNull(message = "Vui lòng chọn loài thú cưng")
     private Long speciesId;
+
+    @Size(max = 50, message = "Tên loài tự nhập không được quá 50 ký tự")
+    private String customSpeciesName;
 
     private Long breedId;
 
@@ -49,8 +51,13 @@ public class CreatePetRequest {
     private Pet.PetStatus status;
     private List<String> allergies;
     private List<String> medicalConditions;
-
     private String notes;
+
+    @AssertTrue(message = "Vui lòng chọn loài thú cưng hoặc nhập loài khác")
+    public boolean isValidSpecies() {
+        return (speciesId != null && speciesId > 0)
+                || (customSpeciesName != null && !customSpeciesName.trim().isEmpty());
+    }
 
     @AssertTrue(message = "Ngày sinh thú cưng không hợp lệ")
     public boolean isValidDateOfBirth() {

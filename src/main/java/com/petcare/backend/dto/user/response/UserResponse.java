@@ -22,6 +22,11 @@ public class UserResponse {
     private String languageCode;
     private String timezone;
     private Boolean pushNotificationEnabled;
+    private Boolean emailAlertsEnabled;
+    private Boolean reminderAlertsEnabled;
+    private Boolean publicProfileEnabled;
+    private Boolean shareLocationEnabled;
+    private String postDefaultPrivacy;
     private String role;
     private String status;
     private Boolean emailVerified;
@@ -43,7 +48,12 @@ public class UserResponse {
                 .location(user.getLocation())
                 .languageCode(user.getLanguageCode())
                 .timezone(user.getTimezone())
-                .pushNotificationEnabled(user.getPushNotificationEnabled())
+                .pushNotificationEnabled(user.getPushNotificationEnabled() != null ? user.getPushNotificationEnabled() : true)
+                .emailAlertsEnabled(user.getEmailAlertsEnabled() != null ? user.getEmailAlertsEnabled() : true)
+                .reminderAlertsEnabled(user.getReminderAlertsEnabled() != null ? user.getReminderAlertsEnabled() : true)
+                .publicProfileEnabled(user.getPublicProfileEnabled() != null ? user.getPublicProfileEnabled() : true)
+                .shareLocationEnabled(user.getShareLocationEnabled() != null ? user.getShareLocationEnabled() : true)
+                .postDefaultPrivacy(user.getPostDefaultPrivacy() != null ? user.getPostDefaultPrivacy() : "friends")
                 .role(user.getRole())
                 .status(user.getStatus())
                 .emailVerified(user.getEmailVerified())

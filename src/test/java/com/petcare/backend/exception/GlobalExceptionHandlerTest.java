@@ -93,7 +93,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleTypeMismatch_UsesStatusFallbackAndGenericFallback() {
         assertThat(body(handler.handleTypeMismatch(mismatch("status", String.class))).getMessage())
-                .isEqualTo("Trạng thái tiêm không hợp lệ");
+                .isEqualTo("Trạng thái không hợp lệ");
         assertThat(body(handler.handleTypeMismatch(mismatch("page", Integer.class))).getMessage())
                 .isEqualTo("Tham số page không hợp lệ");
     }

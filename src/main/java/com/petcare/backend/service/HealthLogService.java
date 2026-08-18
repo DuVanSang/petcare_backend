@@ -1,6 +1,7 @@
 package com.petcare.backend.service;
 
 import com.petcare.backend.dto.health.request.CreateHealthLogRequest;
+import com.petcare.backend.dto.health.request.UpdateHealthLogRequest;
 import com.petcare.backend.dto.health.response.HealthLogResponse;
 import com.petcare.backend.dto.health.response.TimelineEventResponse;
 import com.petcare.backend.dto.health.response.WeightLogResponse;
@@ -11,6 +12,10 @@ import java.util.List;
 public interface HealthLogService {
 
     HealthLogResponse createHealthLog(UserPrincipal principal, CreateHealthLogRequest request);
+
+    HealthLogResponse updateHealthLog(UserPrincipal principal, Long logId, UpdateHealthLogRequest request);
+
+    void deleteHealthLog(UserPrincipal principal, Long logId);
 
     List<HealthLogResponse> getHealthLogs(UserPrincipal principal, Long petId);
 

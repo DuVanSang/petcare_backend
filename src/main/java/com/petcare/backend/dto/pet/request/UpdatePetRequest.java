@@ -2,17 +2,16 @@ package com.petcare.backend.dto.pet.request;
 
 import com.petcare.backend.model.Pet;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PastOrPresent;
-import lombok.Getter;
-import lombok.Setter;
-
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -22,13 +21,17 @@ public class UpdatePetRequest {
     @Size(max = 100, message = "Tên thú cưng không được quá 100 ký tự")
     private String name;
 
-    @Schema(description = "ID loài — lấy từ GET /categories/species", example = "1")
+    @Schema(description = "ID loài - lấy từ GET /categories/species", example = "1")
     private Long speciesId;
 
-    @Schema(description = "ID giống — lấy từ GET /categories/species/{speciesId}/breeds", example = "1")
+    @Schema(description = "Tên loài tự nhập khi người dùng chọn Loài khác", example = "Thỏ")
+    @Size(max = 50, message = "Tên loài tự nhập không được quá 50 ký tự")
+    private String customSpeciesName;
+
+    @Schema(description = "ID giống - lấy từ GET /categories/species/{speciesId}/breeds", example = "1")
     private Long breedId;
 
-    @Schema(description = "Tên giống tự nhập khi chọn mục Khác (otherOption=true)", example = "Chó ta lai")
+    @Schema(description = "Tên giống tự nhập khi chọn mục Khác hoặc nhập loài khác", example = "Thỏ tai cụp")
     @Size(max = 100, message = "Tên giống tự nhập không được quá 100 ký tự")
     private String customBreedName;
 
@@ -44,15 +47,10 @@ public class UpdatePetRequest {
     private BigDecimal currentWeight;
 
     private String colorFeatures;
-
     private Pet.SpayedStatus spayedStatus;
-
     private Pet.PetStatus status;
-
     private String notes;
-
     private List<String> allergies;
-
     private List<String> medicalConditions;
 
     @AssertTrue(message = "Ngày sinh thú cưng không hợp lệ")

@@ -15,4 +15,12 @@ public class UpdateUserPreferencesRequest {
     private String timezone;
 
     private Boolean pushNotificationEnabled;
+
+    private Boolean emailAlertsEnabled;
+    private Boolean reminderAlertsEnabled;
+    private Boolean publicProfileEnabled;
+    private Boolean shareLocationEnabled;
+
+    @Size(max = 20, message = "Quyền riêng tư mặc định không hợp lệ")
+    private String postDefaultPrivacy;
 }

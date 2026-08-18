@@ -5,6 +5,7 @@ import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
 import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
+import com.petcare.backend.dto.user.response.PasswordStatusResponse;
 import com.petcare.backend.dto.user.response.UserDeviceResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.security.UserPrincipal;
@@ -37,6 +38,14 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy thông tin người dùng thành công",
                 userService.getCurrentUser(principal)
+        ));
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy thông tin người dùng thành công",
+                userService.getUserById(userId)
         ));
     }
 
@@ -77,6 +86,15 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật cấu hình cá nhân thành công",
                 userService.updatePreferences(principal, request)
+        ));
+    }
+
+    @GetMapping("/me/password-status")
+    public ResponseEntity<ApiResponse<PasswordStatusResponse>> getPasswordStatus(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy trạng thái mật khẩu thành công",
+                userService.getPasswordStatus(principal)
         ));
     }
 

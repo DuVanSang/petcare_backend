@@ -44,6 +44,7 @@ public class ReminderServiceImpl implements ReminderService {
     );
     private static final Set<CareReminderLog.ReminderLogStatus> CANCELLABLE_STATUSES = Set.of(
             CareReminderLog.ReminderLogStatus.pending,
+            CareReminderLog.ReminderLogStatus.notified,
             CareReminderLog.ReminderLogStatus.snoozed
     );
 
@@ -351,10 +352,13 @@ public class ReminderServiceImpl implements ReminderService {
     }
 
     private CareReminder getOwnedReminder(UserPrincipal principal, Long reminderId) {
-        return reminderRepository.findByIdAndCreatedById(reminderId, principal.getId())
-                .orElseThrow(() -> new BadRequestException(
-                        "Nhắc nhở không tồn tại hoặc không thuộc tài khoản của bạn"
-                ));
+        CareReminder reminder = reminderRepository.findById(reminderId)
+                .orElseThrow(() -> new BadRequestException("Nhắc nhở không tồn tại"));
+
+        if (!reminder.getCreatedBy().getId().equals(principal.getId())) {
+            ensureCanEditPet(principal, reminder.getPet().getId());
+        }
+        return reminder;
     }
 
     private CareReminderLog findCurrentActionableLog(Long reminderId) {
@@ -369,6 +373,24 @@ public class ReminderServiceImpl implements ReminderService {
     }
 
     private void createPendingLog(CareReminder reminder, Instant dueAt) {
+        CareReminderLog existingLog = logRepository.findByReminderIdAndDueAt(reminder.getId(), dueAt)
+                .orElse(null);
+        if (existingLog != null) {
+            if (existingLog.getStatus() == CareReminderLog.ReminderLogStatus.completed
+                    || existingLog.getStatus() == CareReminderLog.ReminderLogStatus.notified) {
+                throw new BadRequestException("Thời gian nhắc này đã tồn tại trong lịch sử nhắc nhở");
+            }
+
+            existingLog.setStatus(CareReminderLog.ReminderLogStatus.pending);
+            existingLog.setDueDate(scheduleCalculator.toLocalDate(dueAt, reminder.getTimezone()));
+            existingLog.setNotifiedAt(null);
+            existingLog.setCompletedAt(null);
+            existingLog.setCompletedBy(null);
+            existingLog.setSnoozedUntil(null);
+            logRepository.save(existingLog);
+            return;
+        }
+
         CareReminderLog log = new CareReminderLog();
         log.setReminder(reminder);
         log.setDueAt(dueAt);

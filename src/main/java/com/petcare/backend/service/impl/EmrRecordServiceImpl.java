@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petcare.backend.dto.emr.EmrAttachmentDto;
 import com.petcare.backend.dto.emr.request.CreateEmrRecordRequest;
+import com.petcare.backend.dto.emr.request.UpdateEmrRecordRequest;
 import com.petcare.backend.dto.emr.response.EmrRecordResponse;
 import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.model.EmrRecord;
@@ -73,6 +74,47 @@ public class EmrRecordServiceImpl implements EmrRecordService {
         petTimelineEventRepository.save(event);
 
         return EmrRecordResponse.from(savedRecord, attachments);
+    }
+
+    @Override
+    @Transactional
+    public EmrRecordResponse updateEmrRecord(UserPrincipal principal, Long emrRecordId, UpdateEmrRecordRequest request) {
+        Long userId = principal.getId();
+        EmrRecord record = emrRecordRepository.findById(emrRecordId)
+                .orElseThrow(() -> new BadRequestException("Hồ sơ EMR không tồn tại"));
+
+        Pet pet = getAccessiblePet(record.getPet().getId(), userId);
+        assertCanEdit(pet, userId);
+
+        List<EmrAttachmentDto> attachments = normalizeAttachments(request.getAttachments());
+
+        record.setRecordType(request.getRecordType());
+        record.setVisitDate(request.getVisitDate());
+        record.setClinicName(trimToNull(request.getClinicName()));
+        record.setVetName(trimToNull(request.getVetName()));
+        record.setVetContact(trimToNull(request.getVetContact()));
+        record.setDiagnosis(request.getDiagnosis().trim());
+        record.setPrescriptionDetails(trimToNull(request.getPrescriptionDetails()));
+        record.setNotes(trimToNull(request.getNotes()));
+        if (request.getAttachments() != null) {
+            record.setAttachments(serializeAttachments(attachments));
+        }
+
+        EmrRecord savedRecord = emrRecordRepository.save(record);
+        return EmrRecordResponse.from(savedRecord, attachments);
+    }
+
+    @Override
+    @Transactional
+    public void deleteEmrRecord(UserPrincipal principal, Long emrRecordId) {
+        Long userId = principal.getId();
+        EmrRecord record = emrRecordRepository.findById(emrRecordId)
+                .orElseThrow(() -> new BadRequestException("Hồ sơ EMR không tồn tại"));
+
+        Pet pet = getAccessiblePet(record.getPet().getId(), userId);
+        assertCanEdit(pet, userId);
+
+        emrRecordRepository.delete(record);
     }
 
     @Override

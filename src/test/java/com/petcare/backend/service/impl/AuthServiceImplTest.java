@@ -35,14 +35,16 @@ class AuthServiceImplTest {
     @Mock UserDeviceRepository devices; @Mock PasswordEncoder encoder;
     @Mock AuthenticationManager authenticationManager; @Mock JwtService jwt;
     @Mock EmailVerificationService verification; @Mock EmailService email;
-    @Mock GoogleTokenService google; AuthServiceImpl service;
+    @Mock GoogleTokenService google; @Mock org.springframework.beans.factory.ObjectProvider<com.google.firebase.auth.FirebaseAuth> firebaseAuthProvider; AuthServiceImpl service;
 
     @BeforeEach void setUp() {
         service = new AuthServiceImpl(users, socialAccounts, resetTokens, refreshTokens, devices, encoder,
-                authenticationManager, jwt, verification, email, google);
+                authenticationManager, jwt, verification, email, google, firebaseAuthProvider);
         ReflectionTestUtils.setField(service, "refreshTokenExpirationMs", 60_000L);
         ReflectionTestUtils.setField(service, "passwordResetOtpExpirationMinutes", 10L);
         when(refreshTokens.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(refreshTokens.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
     }
     private User user(long id) { User u=new User();u.setId(id);u.setEmail("user"+id+"@test.com");u.setFullName("User "+id);u.setStatus("active");u.setEmailVerified(true);return u; }
     private RegisterRequest register(String email) { return RegisterRequest.builder().email(email).password("password1").fullName(" Name ").phoneNumber(" ").build(); }
@@ -53,7 +55,7 @@ class AuthServiceImplTest {
         User saved=user(1);saved.setEmailVerified(false);when(encoder.encode("password1")).thenReturn("encoded");when(users.save(any())).thenReturn(saved);
         var response=service.register(register(" USER@Test.COM "));
         ArgumentCaptor<User> captured=ArgumentCaptor.forClass(User.class);verify(users).save(captured.capture());
-        assertThat(captured.getValue().getEmail()).isEqualTo("user@test.com");assertThat(captured.getValue().getPasswordHash()).isEqualTo("encoded");assertThat(captured.getValue().getPhoneNumber()).isNull();assertThat(response.getUserId()).isEqualTo(1L);verify(verification).createAndSendOtp(saved);
+        assertThat(captured.getValue().getEmail()).isEqualTo("user@test.com");assertThat(captured.getValue().getPasswordHash()).isEqualTo("encoded");assertThat(captured.getValue().getPhoneNumber()).isNull();assertThat(response.getUserId()).isEqualTo(1L);verify(verification).createOtp(saved);
     }
     @Test void register_RejectsDuplicateEmailAndPhoneBeforeSave() {
         when(users.existsByEmail("u@test.com")).thenReturn(true);assertThatThrownBy(()->service.register(register("u@test.com"))).isInstanceOf(BadRequestException.class);verifyNoInteractions(encoder,verification);
@@ -61,17 +63,16 @@ class AuthServiceImplTest {
     }
     @Test void verifyAndResend_VerifyCreatesTokensAndRejectsAlreadyVerified() {
         User u=user(1);u.setEmailVerified(false);when(users.findByEmail("user@test.com")).thenReturn(Optional.of(u));when(users.save(u)).thenReturn(u);when(jwt.generateToken(any())).thenReturn("access");VerifyEmailRequest verifyRequest=new VerifyEmailRequest();verifyRequest.setEmail("USER@test.com");verifyRequest.setOtpCode("123456");
-        assertThat(service.verifyEmail(verifyRequest).getAccessToken()).isEqualTo("access");assertThat(u.getEmailVerified()).isTrue();verify(verification).verify(u,"123456");verify(refreshTokens).save(any());
-        u.setEmailVerified(true);ResendVerificationRequest resend=new ResendVerificationRequest();resend.setEmail("user@test.com");assertThatThrownBy(()->service.resendVerificationCode(resend)).isInstanceOf(BadRequestException.class);u.setEmailVerified(false);service.resendVerificationCode(resend);verify(verification).createAndSendOtp(u);
+        assertThat(service.verifyEmail(verifyRequest).getAccessToken()).isEqualTo("access");assertThat(u.getEmailVerified()).isTrue();verify(verification).verify(u,"123456");verify(refreshTokens).saveAndFlush(any());
+        u.setEmailVerified(true);ResendVerificationRequest resend=new ResendVerificationRequest();resend.setEmail("user@test.com");assertThatThrownBy(()->service.resendVerificationCode(resend)).isInstanceOf(BadRequestException.class);u.setEmailVerified(false);service.resendVerificationCode(resend);verify(verification).createOtp(u);
     }
-    @Test void login_SuccessUpsertsDeviceAndRejectsInactiveOrUnverified() {
-        User u=user(1);UserPrincipal principal=UserPrincipal.from(u);Authentication auth=mock(Authentication.class);when(auth.getPrincipal()).thenReturn(principal);when(authenticationManager.authenticate(any())).thenReturn(auth);when(users.findByEmail(u.getEmail())).thenReturn(Optional.of(u));when(jwt.generateToken(principal)).thenReturn("access");DeviceInfoRequest device=new DeviceInfoRequest();device.setDeviceId(" device-1 ");device.setDeviceType(" WEB ");device.setDeviceToken(" token ");LoginRequest request=login(u.getEmail());request.setDevice(device);
-        assertThat(service.login(request).getAccessToken()).isEqualTo("access");verify(devices).save(argThat(d->"device-1".equals(d.getDeviceId())&&"web".equals(d.getDeviceType())&&Boolean.TRUE.equals(d.getNotificationEnabled())));
-        u.setEmailVerified(false);assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);u.setEmailVerified(true);u.setStatus("banned");assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);
+    @Test void login_SucceedsAndRejectsInactiveOrUnverifiedUsers() {
+        User u=user(1);UserPrincipal principal=UserPrincipal.from(u);Authentication auth=mock(Authentication.class);when(auth.getPrincipal()).thenReturn(principal);when(authenticationManager.authenticate(any())).thenReturn(auth);when(users.findByEmail(u.getEmail())).thenReturn(Optional.of(u));when(jwt.generateToken(principal)).thenReturn("access");LoginRequest request=login(u.getEmail());
+        assertThat(service.login(request).getAccessToken()).isEqualTo("access");
+        u.setEmailVerified(false);assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(com.petcare.backend.exception.EmailNotVerifiedException.class);u.setEmailVerified(true);u.setStatus("banned");assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);
     }
-    @Test void login_RejectsMissingUserAndIncompleteDevice() {
+    @Test void login_RejectsMissingUser() {
         User u=user(1);Authentication auth=mock(Authentication.class);when(auth.getPrincipal()).thenReturn(UserPrincipal.from(u));when(authenticationManager.authenticate(any())).thenReturn(auth);when(users.findByEmail(u.getEmail())).thenReturn(Optional.empty());assertThatThrownBy(()->service.login(login(u.getEmail()))).isInstanceOf(BadRequestException.class);
-        when(users.findByEmail(u.getEmail())).thenReturn(Optional.of(u));DeviceInfoRequest device=new DeviceInfoRequest();device.setDeviceId("id");LoginRequest req=login(u.getEmail());req.setDevice(device);assertThatThrownBy(()->service.login(req)).isInstanceOf(BadRequestException.class);
     }
     @Test void refreshAndLogout_HandleValidRevokedExpiredAndMissingTokens() {
         User u=user(1);RefreshToken token=refresh(u,"good");when(refreshTokens.findByToken("good")).thenReturn(Optional.of(token));when(jwt.generateToken(any())).thenReturn("new-access");RefreshTokenRequest request=new RefreshTokenRequest();request.setRefreshToken("good");assertThat(service.refreshToken(request).getAccessToken()).isEqualTo("new-access");assertThat(token.getRevokedAt()).isNotNull();

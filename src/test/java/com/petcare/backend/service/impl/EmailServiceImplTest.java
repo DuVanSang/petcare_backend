@@ -48,6 +48,13 @@ class EmailServiceImplTest {
         verifyNoInteractions(mailSender);
     }
 
+    @Test void brevoProviderFallsBackWhenApiKeyIsMissing() {
+        ReflectionTestUtils.setField(service, "mailProvider", "brevo");
+        ReflectionTestUtils.setField(service, "brevoApiKey", " ");
+        assertThat(service.sendVerificationOtp("pet@example.com", "123456")).isFalse();
+        verifyNoInteractions(provider, mailSender);
+    }
+
     @Test void smtpProviderSendsVerificationAndResetMessagesWithExpectedArguments() throws Exception {
         ReflectionTestUtils.setField(service, "mailProvider", "smtp");
         when(provider.getIfAvailable()).thenReturn(mailSender);

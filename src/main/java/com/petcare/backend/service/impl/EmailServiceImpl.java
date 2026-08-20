@@ -11,6 +11,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,9 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 public class EmailServiceImpl implements EmailService {
+    private static final String DEFAULT_BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+    private static final Pattern NAMED_EMAIL_PATTERN = Pattern.compile("^(.+?)\\s*<([^<>]+)>$");
+
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -32,17 +37,20 @@ public class EmailServiceImpl implements EmailService {
         this.mailSenderProvider = mailSenderProvider;
     }
 
-    @Value("${app.mail.provider:resend}")
+    @Value("${app.mail.provider:brevo}")
     private String mailProvider;
 
     @Value("${app.mail.sender-email:}")
     private String senderEmail;
 
-    @Value("${app.mail.resend.api-key:}")
-    private String resendApiKey;
+    @Value("${app.mail.brevo.api-key:}")
+    private String brevoApiKey;
 
-    @Value("${app.mail.resend.from-email:PetCare <onboarding@resend.dev>}")
-    private String resendFromEmail;
+    @Value("${app.mail.brevo.from-email:}")
+    private String brevoFromEmail;
+
+    @Value("${app.mail.brevo.api-url:" + DEFAULT_BREVO_API_URL + "}")
+    private String brevoApiUrl;
 
     @Override
     public boolean sendVerificationOtp(String toEmail, String otpCode) {
@@ -63,10 +71,10 @@ public class EmailServiceImpl implements EmailService {
     }
 
     private boolean deliverEmail(String toEmail, String subject, String body, String otpCode) {
-        String provider = StringUtils.hasText(mailProvider) ? mailProvider.trim().toLowerCase() : "resend";
+        String provider = StringUtils.hasText(mailProvider) ? mailProvider.trim().toLowerCase() : "brevo";
 
-        if ("resend".equalsIgnoreCase(provider)) {
-            return sendWithResend(toEmail, subject, body, otpCode);
+        if ("brevo".equalsIgnoreCase(provider)) {
+            return sendWithBrevo(toEmail, subject, body, otpCode);
         } else if ("smtp".equalsIgnoreCase(provider)) {
             return sendWithSmtp(toEmail, subject, body, otpCode);
         } else {
@@ -76,25 +84,34 @@ public class EmailServiceImpl implements EmailService {
     }
 
     /**
-     * Gửi email OTP qua Resend REST API (HTTPS Port 443 - không bị chặn trên bất kỳ VPS nào).
+     * Gửi email OTP qua Brevo Transactional Email API (HTTPS port 443).
      */
-    private boolean sendWithResend(String toEmail, String subject, String body, String otpCode) {
-        if (!StringUtils.hasText(resendApiKey)) {
-            log.warn("RESEND_API_KEY chưa được cấu hình, in OTP ra log cho {}", toEmail);
+    private boolean sendWithBrevo(String toEmail, String subject, String body, String otpCode) {
+        if (!StringUtils.hasText(brevoApiKey)) {
+            log.warn("BREVO_API_KEY chưa được cấu hình, in OTP ra log cho {}", toEmail);
+            log.info("Email fallback for {}: {}", toEmail, body);
+            return false;
+        }
+
+        String from = resolveBrevoFromEmail();
+        if (!StringUtils.hasText(from)) {
+            log.warn("BREVO_FROM_EMAIL hoặc MAIL_SENDER_EMAIL chưa được cấu hình, in OTP ra log cho {}", toEmail);
             log.info("Email fallback for {}: {}", toEmail, body);
             return false;
         }
 
         try {
-            String from = StringUtils.hasText(resendFromEmail) ? resendFromEmail : "PetCare <onboarding@resend.dev>";
             String htmlContent = buildOtpHtml(subject, otpCode);
 
+            Map<String, String> sender = parseSender(from);
+            Map<String, String> recipient = new HashMap<>();
+            recipient.put("email", toEmail);
+
             Map<String, Object> payload = new HashMap<>();
-            payload.put("from", from);
-            payload.put("to", Collections.singletonList(toEmail));
+            payload.put("sender", sender);
+            payload.put("to", Collections.singletonList(recipient));
             payload.put("subject", subject);
-            payload.put("html", htmlContent);
-            payload.put("text", body);
+            payload.put("htmlContent", htmlContent);
 
             String jsonBody = objectMapper.writeValueAsString(payload);
 
@@ -103,8 +120,9 @@ public class EmailServiceImpl implements EmailService {
                     .build();
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.resend.com/emails"))
-                    .header("Authorization", "Bearer " + resendApiKey.trim())
+                    .uri(URI.create(StringUtils.hasText(brevoApiUrl) ? brevoApiUrl.trim() : DEFAULT_BREVO_API_URL))
+                    .header("accept", "application/json")
+                    .header("api-key", brevoApiKey.trim())
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
                     .build();
@@ -112,15 +130,15 @@ public class EmailServiceImpl implements EmailService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("Đã gửi email OTP qua Resend thành công cho {} (status={})", toEmail, response.statusCode());
+                log.info("Đã gửi email OTP qua Brevo API thành công cho {} (status={})", toEmail, response.statusCode());
                 return true;
             } else {
-                log.error("Resend API trả về lỗi (status={}): {}", response.statusCode(), response.body());
+                log.error("Brevo API trả về lỗi (status={}): {}", response.statusCode(), response.body());
                 log.info("Email fallback for {}: {}", toEmail, body);
                 return false;
             }
         } catch (Exception ex) {
-            log.error("Không thể gửi email qua Resend cho {}", toEmail, ex);
+            log.error("Không thể gửi email qua Brevo API cho {}", toEmail, ex);
             log.info("Email fallback for {}: {}", toEmail, body);
             return false;
         }
@@ -152,6 +170,25 @@ public class EmailServiceImpl implements EmailService {
             log.info("Email fallback for {}: {}", toEmail, body);
             return false;
         }
+    }
+
+    private String resolveBrevoFromEmail() {
+        if (StringUtils.hasText(brevoFromEmail)) {
+            return brevoFromEmail.trim();
+        }
+        return StringUtils.hasText(senderEmail) ? senderEmail.trim() : "";
+    }
+
+    private Map<String, String> parseSender(String from) {
+        Matcher matcher = NAMED_EMAIL_PATTERN.matcher(from.trim());
+        Map<String, String> sender = new HashMap<>();
+        if (matcher.matches()) {
+            sender.put("name", matcher.group(1).trim());
+            sender.put("email", matcher.group(2).trim());
+        } else {
+            sender.put("email", from.trim());
+        }
+        return sender;
     }
 
     /**

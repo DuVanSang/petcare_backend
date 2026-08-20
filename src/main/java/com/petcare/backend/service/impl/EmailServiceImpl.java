@@ -11,11 +11,14 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -65,7 +68,7 @@ public class EmailServiceImpl implements EmailService {
         if ("resend".equalsIgnoreCase(provider)) {
             return sendWithResend(toEmail, subject, body, otpCode);
         } else if ("smtp".equalsIgnoreCase(provider)) {
-            return sendWithSmtp(toEmail, subject, body);
+            return sendWithSmtp(toEmail, subject, body, otpCode);
         } else {
             log.info("Email OTP for {}: {}", toEmail, body);
             return false;
@@ -126,7 +129,7 @@ public class EmailServiceImpl implements EmailService {
     /**
      * Gửi email OTP qua SMTP JavaMailSender truyền thống.
      */
-    private boolean sendWithSmtp(String toEmail, String subject, String body) {
+    private boolean sendWithSmtp(String toEmail, String subject, String body, String otpCode) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null || !StringUtils.hasText(senderEmail)) {
             log.warn("SMTP chưa cấu hình, in OTP ra log cho {}", toEmail);
@@ -135,15 +138,16 @@ public class EmailServiceImpl implements EmailService {
         }
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(senderEmail);
-            message.setTo(toEmail);
-            message.setSubject(subject);
-            message.setText(body);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+            helper.setFrom(senderEmail);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(body, buildOtpHtml(subject, otpCode));
             mailSender.send(message);
             log.info("Đã gửi email OTP qua SMTP thành công cho {}", toEmail);
             return true;
-        } catch (org.springframework.mail.MailException ex) {
+        } catch (MessagingException | MailException ex) {
             log.error("Không gửi được email qua SMTP cho {}, in OTP ra log", toEmail, ex);
             log.info("Email fallback for {}: {}", toEmail, body);
             return false;

@@ -146,7 +146,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         validateFile(file);
 
         String originalFilename = file.getOriginalFilename().trim();
-        String mimeType = file.getContentType().toLowerCase(Locale.ROOT);
+        String mimeType = resolveMimeType(file);
         String mediaType = SUPPORTED_MIME_TYPES.get(mimeType);
         String storedFilename = uuidOnly
                 ? UUID.randomUUID() + safeImageExtension(mimeType)
@@ -188,9 +188,8 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (file == null || file.isEmpty() || file.getSize() > 5L * 1024 * 1024) {
             throw new BadRequestException(message);
         }
-        String mimeType = file.getContentType();
-        if (!StringUtils.hasText(mimeType)
-                || !List.of("image/jpeg", "image/png", "image/webp").contains(mimeType.toLowerCase(Locale.ROOT))) {
+        String mimeType = resolveMimeType(file);
+        if (!List.of("image/jpeg", "image/png", "image/webp").contains(mimeType)) {
             throw new BadRequestException(message);
         }
     }
@@ -225,11 +224,43 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             throw new BadRequestException("File vượt quá dung lượng cho phép");
         }
 
-        String mimeType = file.getContentType();
-        if (!StringUtils.hasText(mimeType)
-                || !SUPPORTED_MIME_TYPES.containsKey(mimeType.toLowerCase(Locale.ROOT))) {
+        String mimeType = resolveMimeType(file);
+        if (!SUPPORTED_MIME_TYPES.containsKey(mimeType)) {
             throw new BadRequestException("Định dạng file không được hỗ trợ");
         }
+    }
+
+    private String resolveMimeType(MultipartFile file) {
+        String mimeType = file.getContentType();
+        if (StringUtils.hasText(mimeType) && !"application/octet-stream".equalsIgnoreCase(mimeType)) {
+            return normalizeMimeType(mimeType);
+        }
+
+        String filename = file.getOriginalFilename();
+        if (!StringUtils.hasText(filename)) {
+            return "";
+        }
+        String lowerFilename = filename.toLowerCase(Locale.ROOT);
+        if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerFilename.endsWith(".png")) return "image/png";
+        if (lowerFilename.endsWith(".webp")) return "image/webp";
+        if (lowerFilename.endsWith(".gif")) return "image/gif";
+        if (lowerFilename.endsWith(".mp4")) return "video/mp4";
+        if (lowerFilename.endsWith(".webm")) return "video/webm";
+        if (lowerFilename.endsWith(".mov")) return "video/quicktime";
+        if (lowerFilename.endsWith(".pdf")) return "application/pdf";
+        if (lowerFilename.endsWith(".doc")) return "application/msword";
+        if (lowerFilename.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lowerFilename.endsWith(".txt")) return "text/plain";
+        return "";
+    }
+
+    private String normalizeMimeType(String mimeType) {
+        String normalized = mimeType.toLowerCase(Locale.ROOT);
+        if ("image/jpg".equals(normalized) || "image/pjpeg".equals(normalized)) {
+            return "image/jpeg";
+        }
+        return normalized;
     }
 
     private String sanitizeFilename(String filename) {

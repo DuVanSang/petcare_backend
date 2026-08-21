@@ -26,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -61,11 +62,15 @@ public class PetController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<PetResponse>> createPetMultipart(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("data") String data,
-            @RequestPart(value = "avatar", required = false) MultipartFile avatar) {
-        CreatePetRequest request = parseAndValidate(data, CreatePetRequest.class);
+            @RequestParam(value = "data", required = false) String data,
+            @RequestParam(value = "pet", required = false) String pet,
+            @RequestParam(value = "payload", required = false) String payload,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        CreatePetRequest request = parseAndValidate(firstText(data, pet, payload), CreatePetRequest.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Pet created successfully",
-                petService.createPet(principal.getId(), request, avatar)));
+                petService.createPet(principal.getId(), request, firstFile(avatar, file, image))));
     }
 
     @GetMapping("/me")
@@ -104,11 +109,15 @@ public class PetController {
     @PatchMapping(value = "/{petId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<PetResponse>> updatePetMultipart(
             @AuthenticationPrincipal UserPrincipal principal, @PathVariable Long petId,
-            @RequestPart("data") String data,
-            @RequestPart(value = "avatar", required = false) MultipartFile avatar) {
-        UpdatePetRequest request = parseAndValidate(data, UpdatePetRequest.class);
+            @RequestParam(value = "data", required = false) String data,
+            @RequestParam(value = "pet", required = false) String pet,
+            @RequestParam(value = "payload", required = false) String payload,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        UpdatePetRequest request = parseAndValidate(firstText(data, pet, payload), UpdatePetRequest.class);
         return ResponseEntity.ok(ApiResponse.success("Pet updated successfully",
-                petService.updatePet(principal.getId(), petId, request, avatar)));
+                petService.updatePet(principal.getId(), petId, request, firstFile(avatar, file, image))));
     }
 
     @DeleteMapping("/{petId}")
@@ -214,6 +223,9 @@ public class PetController {
     }
 
     private <T> T parseAndValidate(String data, Class<T> type) {
+        if (!StringUtils.hasText(data)) {
+            throw new BadRequestException("Thiếu dữ liệu thú cưng");
+        }
         try {
             T request = objectMapper.readValue(data, type);
             var violations = validator.validate(request);
@@ -222,5 +234,23 @@ public class PetController {
         } catch (JsonProcessingException ex) {
             throw new BadRequestException("Invalid pet data");
         }
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private MultipartFile firstFile(MultipartFile... files) {
+        for (MultipartFile file : files) {
+            if (file != null && !file.isEmpty()) {
+                return file;
+            }
+        }
+        return null;
     }
 }

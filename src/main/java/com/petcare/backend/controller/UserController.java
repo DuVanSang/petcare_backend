@@ -8,6 +8,7 @@ import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
 import com.petcare.backend.dto.user.response.PasswordStatusResponse;
 import com.petcare.backend.dto.user.response.UserDeviceResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
+import com.petcare.backend.exception.BadRequestException;
 import com.petcare.backend.security.UserPrincipal;
 import com.petcare.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -62,20 +63,24 @@ public class UserController {
     @PatchMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật ảnh đại diện thành công",
-                userService.uploadAvatar(principal, file)
+                userService.uploadAvatar(principal, requireFile("Vui lòng chọn ảnh đại diện", file, avatar, image))
         ));
     }
 
     @PatchMapping(value = "/me/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserResponse>> uploadCoverImage(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestPart(value = "cover", required = false) MultipartFile cover,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật ảnh bìa thành công",
-                userService.uploadCoverImage(principal, file)
+                userService.uploadCoverImage(principal, requireFile("Vui lòng chọn ảnh bìa", file, cover, image))
         ));
     }
 
@@ -131,5 +136,14 @@ public class UserController {
             @PathVariable Long deviceId) {
         userService.deleteMyDevice(principal, deviceId);
         return ResponseEntity.ok(ApiResponse.success("Xóa thiết bị thành công", null));
+    }
+
+    private MultipartFile requireFile(String message, MultipartFile... files) {
+        for (MultipartFile file : files) {
+            if (file != null && !file.isEmpty()) {
+                return file;
+            }
+        }
+        throw new BadRequestException(message);
     }
 }

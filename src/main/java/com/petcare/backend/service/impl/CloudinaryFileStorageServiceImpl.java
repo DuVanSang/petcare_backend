@@ -8,6 +8,7 @@ import com.petcare.backend.service.FileStorageService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -133,10 +134,8 @@ public class CloudinaryFileStorageServiceImpl implements FileStorageService {
     private UploadFileResponse uploadToCloudinary(MultipartFile file, String folder) {
         validateFile(file);
 
-        String contentType = file.getContentType();
-        String mediaType = (contentType != null && SUPPORTED_MIME_TYPES.containsKey(contentType.toLowerCase()))
-                ? SUPPORTED_MIME_TYPES.get(contentType.toLowerCase())
-                : "image";
+        String mimeType = resolveMimeType(file);
+        String mediaType = SUPPORTED_MIME_TYPES.getOrDefault(mimeType, "image");
 
         String publicId = UUID.randomUUID().toString();
 
@@ -160,7 +159,7 @@ public class CloudinaryFileStorageServiceImpl implements FileStorageService {
                     .thumbnailUrl(secureUrl)
                     .originalFilename(file.getOriginalFilename())
                     .storedFilename(publicId)
-                    .mimeType(contentType)
+                    .mimeType(mimeType)
                     .fileSize(file.getSize())
                     .build();
 
@@ -175,8 +174,8 @@ public class CloudinaryFileStorageServiceImpl implements FileStorageService {
             throw new BadRequestException("File không được để trống");
         }
 
-        String mimeType = file.getContentType();
-        if (mimeType == null || !SUPPORTED_MIME_TYPES.containsKey(mimeType.toLowerCase())) {
+        String mimeType = resolveMimeType(file);
+        if (!SUPPORTED_MIME_TYPES.containsKey(mimeType)) {
             throw new BadRequestException("Định dạng file không được hỗ trợ");
         }
 
@@ -190,16 +189,45 @@ public class CloudinaryFileStorageServiceImpl implements FileStorageService {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException(message);
         }
-        String mimeType = file.getContentType();
-        if (mimeType == null) {
-            throw new BadRequestException(message);
-        }
-        String normalizedMime = mimeType.toLowerCase();
+        String normalizedMime = resolveMimeType(file);
         if (!normalizedMime.equals("image/jpeg") && !normalizedMime.equals("image/png") && !normalizedMime.equals("image/webp")) {
             throw new BadRequestException("Chỉ hỗ trợ file ảnh JPG, PNG hoặc WEBP");
         }
         if (file.getSize() > 5L * 1024 * 1024) {
             throw new BadRequestException("Kích thước ảnh không được vượt quá 5MB");
         }
+    }
+
+    private String resolveMimeType(MultipartFile file) {
+        String mimeType = file.getContentType();
+        if (StringUtils.hasText(mimeType) && !"application/octet-stream".equalsIgnoreCase(mimeType)) {
+            return normalizeMimeType(mimeType);
+        }
+
+        String filename = file.getOriginalFilename();
+        if (!StringUtils.hasText(filename)) {
+            return "";
+        }
+        String lowerFilename = filename.toLowerCase(Locale.ROOT);
+        if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerFilename.endsWith(".png")) return "image/png";
+        if (lowerFilename.endsWith(".webp")) return "image/webp";
+        if (lowerFilename.endsWith(".gif")) return "image/gif";
+        if (lowerFilename.endsWith(".mp4")) return "video/mp4";
+        if (lowerFilename.endsWith(".webm")) return "video/webm";
+        if (lowerFilename.endsWith(".mov")) return "video/quicktime";
+        if (lowerFilename.endsWith(".pdf")) return "application/pdf";
+        if (lowerFilename.endsWith(".doc")) return "application/msword";
+        if (lowerFilename.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lowerFilename.endsWith(".txt")) return "text/plain";
+        return "";
+    }
+
+    private String normalizeMimeType(String mimeType) {
+        String normalized = mimeType.toLowerCase(Locale.ROOT);
+        if ("image/jpg".equals(normalized) || "image/pjpeg".equals(normalized)) {
+            return "image/jpeg";
+        }
+        return normalized;
     }
 }

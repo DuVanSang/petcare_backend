@@ -72,9 +72,13 @@ class LocalFileStorageServiceImplTest {
     void profileImages_UseUuidExtensionAndRejectInvalidInputs() {
         UploadFileResponse avatar = service.storePetAvatar(file("pet.any", "image/png", new byte[] {1}), 99L);
         UploadFileResponse cover = service.storeUserProfileImage(file("cover.jpg", "image/jpeg", new byte[] {1}), 99L, "cover");
+        UploadFileResponse jpgAlias = service.storeUserProfileImage(file("alias.jpg", "image/jpg", new byte[] {1}), 99L, "avatar");
+        UploadFileResponse inferred = service.storeUserProfileImage(file("camera.jpeg", "application/octet-stream", new byte[] {1}), 99L, "avatar");
 
         assertThat(avatar.getStoredFilename()).matches("[0-9a-f-]+\\.png");
         assertThat(cover.getMediaUrl()).contains("/user-profile/cover/");
+        assertThat(jpgAlias.getMimeType()).isEqualTo("image/jpeg");
+        assertThat(inferred.getStoredFilename()).endsWith(".jpg");
         assertThatThrownBy(() -> service.storeUserProfileImage(file("x.gif", "image/gif", new byte[] {1}), 1L, "avatar"))
                 .isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.storeUserProfileImage(file("x.png", "image/png", new byte[] {1}), 1L, "banner"))

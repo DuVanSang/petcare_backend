@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.upload.UploadFileResponse;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
@@ -139,5 +140,25 @@ class UserServiceImplTest {
         service.deleteMyDevice(principal, 2L); verify(devices).delete(device);
         when(devices.findByIdAndUserId(3L, 1L)).thenReturn(Optional.empty());
         service.deleteMyDevice(principal, 3L); verify(devices, times(1)).delete(any());
+    }
+
+    @Test void registerDevice_updatesExistingDeviceMatchedByIdOrToken() {
+        User user = user(); current(user);
+        UserDevice existing = new UserDevice(); existing.setId(2L); existing.setDeviceId("old-phone"); existing.setDeviceType("ios");
+        DeviceInfoRequest request = new DeviceInfoRequest();
+        request.setDeviceId(" new-phone ");
+        request.setDeviceType(" ANDROID ");
+        request.setDeviceToken(" token-1 ");
+        when(devices.findForRegistration("new-phone", "token-1")).thenReturn(Optional.of(existing));
+        when(devices.save(existing)).thenReturn(existing);
+
+        var response = service.registerDevice(principal, request);
+
+        assertThat(response.getDeviceId()).isEqualTo("new-phone");
+        assertThat(existing.getUser()).isSameAs(user);
+        assertThat(existing.getDeviceType()).isEqualTo("android");
+        assertThat(existing.getDeviceToken()).isEqualTo("token-1");
+        assertThat(existing.getNotificationEnabled()).isTrue();
+        verify(devices).save(existing);
     }
 }

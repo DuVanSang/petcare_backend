@@ -228,14 +228,17 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
 
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(request.getDeviceId().trim())
+        String deviceId = request.getDeviceId().trim();
+        String deviceToken = emptyToNull(request.getDeviceToken());
+
+        UserDevice userDevice = userDeviceRepository.findForRegistration(deviceId, deviceToken)
                 .orElseGet(UserDevice::new);
 
         userDevice.setUser(user);
-        userDevice.setDeviceId(request.getDeviceId().trim());
+        userDevice.setDeviceId(deviceId);
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(emptyToNull(request.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(request.getDeviceToken()));
+        userDevice.setDeviceToken(deviceToken);
+        userDevice.setNotificationEnabled(deviceToken != null);
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDevice.setLastLoginAt(LocalDateTime.now());
 

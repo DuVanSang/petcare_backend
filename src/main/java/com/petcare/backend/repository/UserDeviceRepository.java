@@ -14,6 +14,16 @@ public interface UserDeviceRepository extends JpaRepository<UserDevice, Long> {
 
     Optional<UserDevice> findByDeviceId(String deviceId);
 
+    Optional<UserDevice> findByDeviceToken(String deviceToken);
+
+    default Optional<UserDevice> findForRegistration(String deviceId, String deviceToken) {
+        Optional<UserDevice> existingByDeviceId = findByDeviceId(deviceId);
+        if (existingByDeviceId.isPresent() || deviceToken == null) {
+            return existingByDeviceId;
+        }
+        return findByDeviceToken(deviceToken);
+    }
+
     @Query("""
             select d
             from UserDevice d

@@ -97,6 +97,7 @@ public class AuthServiceImpl implements AuthService {
             existingUser.setPhoneNumber(phoneNumber);
 
             User savedUser = userRepository.save(existingUser);
+            upsertUserDevice(savedUser, request.getDevice());
             String otpCode = emailVerificationService.createOtp(savedUser);
             boolean emailSent = emailService.sendVerificationOtp(savedUser.getEmail(), otpCode);
 
@@ -125,6 +126,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
+        upsertUserDevice(savedUser, request.getDevice());
         String otpCode = emailVerificationService.createOtp(savedUser);
         boolean emailSent = emailService.sendVerificationOtp(savedUser.getEmail(), otpCode);
 
@@ -465,14 +467,17 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
 
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
+        String deviceId = device.getDeviceId().trim();
+        String deviceToken = trimToNull(device.getDeviceToken());
+
+        UserDevice userDevice = userDeviceRepository.findForRegistration(deviceId, deviceToken)
                 .orElseGet(UserDevice::new);
 
         userDevice.setUser(user);
-        userDevice.setDeviceId(device.getDeviceId().trim());
+        userDevice.setDeviceId(deviceId);
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
+        userDevice.setDeviceToken(deviceToken);
+        userDevice.setNotificationEnabled(deviceToken != null);
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDevice.setLastLoginAt(LocalDateTime.now());
 

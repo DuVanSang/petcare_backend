@@ -17,5 +17,9 @@ public interface FileStorageService {
 
     UploadFileResponse storeUserProfileImage(MultipartFile file, Long userId, String imageType);
 
+    UploadFileResponse storeBlogCoverImage(MultipartFile file);
+
+    UploadFileResponse storeMomentMediaFile(MultipartFile file);
+
     void deleteByUrl(String fileUrl);
 }

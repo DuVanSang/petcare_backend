@@ -60,13 +60,13 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         Species species = new Species();
         species.setName(name);
         species.setIconUrl(trimToNull(request.getIconUrl()));
-        species.setActive(true);
+        species.setActive(request.getActive() == null || request.getActive());
         Species savedSpecies = speciesRepository.save(species);
 
         Breed otherBreed = new Breed();
         otherBreed.setSpecies(savedSpecies);
         otherBreed.setName("Khác");
-        otherBreed.setActive(true);
+        otherBreed.setActive(savedSpecies.getActive());
         breedRepository.save(otherBreed);
 
         return AdminSpeciesResponse.from(savedSpecies);
@@ -133,7 +133,7 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         Breed breed = new Breed();
         breed.setSpecies(species);
         breed.setName(name);
-        breed.setActive(true);
+        breed.setActive(request.getActive() == null || request.getActive());
         return AdminBreedResponse.from(breedRepository.save(breed));
     }
 

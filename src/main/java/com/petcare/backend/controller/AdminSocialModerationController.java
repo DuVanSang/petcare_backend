@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/social")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin - Social Moderation", description = "Kiểm duyệt nội dung cộng đồng")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminSocialModerationController {

@@ -19,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.petcare.backend.exception.BadRequestException;
+import com.petcare.backend.exception.EmailNotVerifiedException;
 import com.petcare.backend.model.PasswordResetToken;
 import com.petcare.backend.model.RefreshToken;
 import com.petcare.backend.model.User;
@@ -84,11 +85,36 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         String email = normalizeEmail(request.getEmail());
+        String phoneNumber = trimToNull(request.getPhoneNumber());
+        User existingUser = userRepository.findByEmail(email).orElse(null);
+        if (existingUser != null && !Boolean.TRUE.equals(existingUser.getEmailVerified())) {
+            if (phoneNumber != null && userRepository.existsByPhoneNumberAndIdNot(phoneNumber, existingUser.getId())) {
+                throw new BadRequestException("Số điện thoại đã được sử dụng");
+            }
+
+            existingUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            existingUser.setFullName(request.getFullName().trim());
+            existingUser.setPhoneNumber(phoneNumber);
+
+            User savedUser = userRepository.save(existingUser);
+            upsertUserDevice(savedUser, request.getDevice());
+            String otpCode = emailVerificationService.createOtp(savedUser);
+            boolean emailSent = emailService.sendVerificationOtp(savedUser.getEmail(), otpCode);
+
+            return new RegisterResponse(
+                    savedUser.getId(),
+                    savedUser.getEmail(),
+                    savedUser.getEmailVerified(),
+                    emailSent,
+                    resolveDevOtp(emailSent, otpCode),
+                    true,
+                    true
+            );
+        }
         if (userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email đã được sử dụng");
         }
 
-        String phoneNumber = trimToNull(request.getPhoneNumber());
         if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
             throw new BadRequestException("Số điện thoại đã được sử dụng");
         }
@@ -100,6 +126,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneNumber(phoneNumber);
 
         User savedUser = userRepository.save(user);
+        upsertUserDevice(savedUser, request.getDevice());
         String otpCode = emailVerificationService.createOtp(savedUser);
         boolean emailSent = emailService.sendVerificationOtp(savedUser.getEmail(), otpCode);
 
@@ -113,7 +140,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(timeout = 10)
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
                 .orElseThrow(() -> new BadRequestException("Email không tồn tại"));
@@ -122,10 +149,9 @@ public class AuthServiceImpl implements AuthService {
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(LocalDateTime.now());
 
-        User savedUser = userRepository.save(user);
+        User savedUser = userRepository.saveAndFlush(user);
         String accessToken = jwtService.generateToken(UserPrincipal.from(savedUser));
         String refreshToken = createRefreshToken(savedUser).getToken();
-
         return new AuthResponse(accessToken, refreshToken, "Bearer", UserResponse.from(savedUser));
     }
 
@@ -145,7 +171,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = EmailNotVerifiedException.class)
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -161,7 +187,9 @@ public class AuthServiceImpl implements AuthService {
         ensureActiveAccount(user);
 
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
-            throw new BadRequestException("Vui lòng xác thực email trước khi đăng nhập");
+            String otpCode = emailVerificationService.createOtpForExistingUser(user.getId());
+            emailService.sendVerificationOtp(user.getEmail(), otpCode);
+            throw new EmailNotVerifiedException(user.getEmail());
         }
 
         String accessToken = jwtService.generateToken(principal);
@@ -402,7 +430,7 @@ public class AuthServiceImpl implements AuthService {
         refreshToken.setUser(user);
         refreshToken.setToken(generateRefreshTokenValue());
         refreshToken.setExpiresAt(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenExpirationMs)));
-        return refreshTokenRepository.save(refreshToken);
+        return refreshTokenRepository.saveAndFlush(refreshToken);
     }
 
     private RefreshToken validateRefreshToken(String tokenValue) {
@@ -439,14 +467,17 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
 
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(device.getDeviceId().trim())
+        String deviceId = device.getDeviceId().trim();
+        String deviceToken = trimToNull(device.getDeviceToken());
+
+        UserDevice userDevice = userDeviceRepository.findForRegistration(deviceId, deviceToken)
                 .orElseGet(UserDevice::new);
 
         userDevice.setUser(user);
-        userDevice.setDeviceId(device.getDeviceId().trim());
+        userDevice.setDeviceId(deviceId);
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(trimToNull(device.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(device.getDeviceToken()));
+        userDevice.setDeviceToken(deviceToken);
+        userDevice.setNotificationEnabled(deviceToken != null);
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDevice.setLastLoginAt(LocalDateTime.now());
 

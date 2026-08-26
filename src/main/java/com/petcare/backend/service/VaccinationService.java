@@ -9,6 +9,7 @@ import com.petcare.backend.dto.vaccination.request.SkipVaccinationRequest;
 import com.petcare.backend.dto.vaccination.response.VaccineOptionResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationResponse;
 import com.petcare.backend.dto.vaccination.response.VaccinationSafetyWarningResponse;
+import com.petcare.backend.model.Pet;
 import com.petcare.backend.model.PetVaccination;
 import com.petcare.backend.model.VaccineTemplate;
 import com.petcare.backend.security.UserPrincipal;
@@ -70,4 +71,10 @@ public interface VaccinationService {
             Long vaccinationId,
             RescheduleVaccinationRequest request
     );
+
+    void resetPlan(UserPrincipal principal, Long petId);
+
+    String switchScheduleMode(UserPrincipal principal, Long petId, Pet.VaccineScheduleMode mode);
+
+    void deleteVaccination(UserPrincipal principal, Long petId, Long vaccinationId);
 }

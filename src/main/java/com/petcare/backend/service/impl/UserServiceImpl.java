@@ -4,6 +4,7 @@ import com.petcare.backend.dto.auth.request.DeviceInfoRequest;
 import com.petcare.backend.dto.user.request.ChangePasswordRequest;
 import com.petcare.backend.dto.user.request.UpdateProfileRequest;
 import com.petcare.backend.dto.user.request.UpdateUserPreferencesRequest;
+import com.petcare.backend.dto.user.response.PasswordStatusResponse;
 import com.petcare.backend.dto.user.response.UserDeviceResponse;
 import com.petcare.backend.dto.user.response.UserResponse;
 import com.petcare.backend.dto.upload.UploadFileResponse;
@@ -33,9 +34,42 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
 
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Transactional
+    public void migrateUserPreferencesDefaults() {
+        List<User> users = userRepository.findAll();
+        for (User u : users) {
+            boolean updated = false;
+            if (u.getEmailAlertsEnabled() == null || !u.getEmailAlertsEnabled()) {
+                u.setEmailAlertsEnabled(true);
+                updated = true;
+            }
+            if (u.getReminderAlertsEnabled() == null || !u.getReminderAlertsEnabled()) {
+                u.setReminderAlertsEnabled(true);
+                updated = true;
+            }
+            if (u.getPublicProfileEnabled() == null || !u.getPublicProfileEnabled()) {
+                u.setPublicProfileEnabled(true);
+                updated = true;
+            }
+            if (u.getShareLocationEnabled() == null || !u.getShareLocationEnabled()) {
+                u.setShareLocationEnabled(true);
+                updated = true;
+            }
+            if (updated) {
+                userRepository.save(u);
+            }
+        }
+    }
+
     @Override
     public UserResponse getCurrentUser(UserPrincipal principal) {
         return UserResponse.from(getUserOrThrow(principal.getId()));
+    }
+
+    @Override
+    public UserResponse getUserById(Long userId) {
+        return UserResponse.from(getUserOrThrow(userId));
     }
 
     @Override
@@ -122,14 +156,43 @@ public class UserServiceImpl implements UserService {
         if (request.getPushNotificationEnabled() != null) {
             user.setPushNotificationEnabled(request.getPushNotificationEnabled());
         }
+        if (request.getEmailAlertsEnabled() != null) {
+            user.setEmailAlertsEnabled(request.getEmailAlertsEnabled());
+        }
+        if (request.getReminderAlertsEnabled() != null) {
+            user.setReminderAlertsEnabled(request.getReminderAlertsEnabled());
+        }
+        if (request.getPublicProfileEnabled() != null) {
+            user.setPublicProfileEnabled(request.getPublicProfileEnabled());
+        }
+        if (request.getShareLocationEnabled() != null) {
+            user.setShareLocationEnabled(request.getShareLocationEnabled());
+        }
+        if (StringUtils.hasText(request.getPostDefaultPrivacy())) {
+            user.setPostDefaultPrivacy(request.getPostDefaultPrivacy().trim());
+        }
 
         return UserResponse.from(userRepository.save(user));
+    }
+
+    @Override
+    public PasswordStatusResponse getPasswordStatus(UserPrincipal principal) {
+        User user = getUserOrThrow(principal.getId());
+        return PasswordStatusResponse.builder()
+                .passwordStatus(StringUtils.hasText(user.getPasswordHash()) ? "SET" : "NOT_SET")
+                .build();
     }
 
     @Override
     @Transactional
     public void changePassword(UserPrincipal principal, ChangePasswordRequest request) {
         User user = getUserOrThrow(principal.getId());
+
+        if (!StringUtils.hasText(user.getPasswordHash())) {
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+            return;
+        }
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new BadRequestException("Mật khẩu hiện tại không chính xác");
@@ -165,14 +228,17 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Loại thiết bị là bắt buộc khi gửi deviceId");
         }
 
-        UserDevice userDevice = userDeviceRepository.findByDeviceId(request.getDeviceId().trim())
+        String deviceId = request.getDeviceId().trim();
+        String deviceToken = emptyToNull(request.getDeviceToken());
+
+        UserDevice userDevice = userDeviceRepository.findForRegistration(deviceId, deviceToken)
                 .orElseGet(UserDevice::new);
 
         userDevice.setUser(user);
-        userDevice.setDeviceId(request.getDeviceId().trim());
+        userDevice.setDeviceId(deviceId);
         userDevice.setDeviceType(deviceType.trim().toLowerCase());
-        userDevice.setDeviceToken(emptyToNull(request.getDeviceToken()));
-        userDevice.setNotificationEnabled(StringUtils.hasText(request.getDeviceToken()));
+        userDevice.setDeviceToken(deviceToken);
+        userDevice.setNotificationEnabled(deviceToken != null);
         userDevice.setLastActiveAt(LocalDateTime.now());
         userDevice.setLastLoginAt(LocalDateTime.now());
 

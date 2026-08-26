@@ -41,6 +41,7 @@ public class PetResponse {
     private String spayedStatus;
     private String status;
     private String vaccinePlanStatus;
+    private String vaccineScheduleMode;
     private String notes;
     private List<String> allergies;
     private List<String> medicalConditions;
@@ -78,6 +79,7 @@ public class PetResponse {
         dto.setSpayedStatus(pet.getSpayedStatus() != null ? pet.getSpayedStatus().name() : null);
         dto.setStatus(pet.getStatus() != null ? pet.getStatus().name() : null);
         dto.setVaccinePlanStatus(pet.getVaccinePlanStatus() != null ? pet.getVaccinePlanStatus().name() : null);
+        dto.setVaccineScheduleMode(pet.getVaccineScheduleMode() != null ? pet.getVaccineScheduleMode().name() : "AUTOMATIC");
         dto.setNotes(pet.getNotes());
         dto.setCreatedAt(pet.getCreatedAt());
         dto.setUpdatedAt(pet.getUpdatedAt());

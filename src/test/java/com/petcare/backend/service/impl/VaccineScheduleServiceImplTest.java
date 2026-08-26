@@ -31,8 +31,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class VaccineScheduleServiceImplTest {
     @Mock
     private VaccineTemplateRepository templateRepository;
@@ -364,6 +368,143 @@ class VaccineScheduleServiceImplTest {
 
         assertThat(locked.getScheduledDate()).isEqualTo(LocalDate.now().plusDays(40));
         verify(vaccinationRepository, never()).save(locked);
+    }
+
+    @Test
+    void helperMethods_CoverHistoryAgeAndDatePartitions() {
+        VaccinationHistoryRequest none = history("DHPP", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null);
+        VaccinationHistoryRequest complete = history("DHPP", VaccinationHistoryRequest.HistoryStatus.COMPLETE, 1, LocalDate.now());
+        assertThat((VaccineTemplate.TargetStage) ReflectionTestUtils.invokeMethod(service, "resolveTargetStage", 10L, none))
+                .isEqualTo(VaccineTemplate.TargetStage.PUPPY);
+        assertThat((VaccineTemplate.TargetStage) ReflectionTestUtils.invokeMethod(service, "resolveTargetStage", 26L, none))
+                .isEqualTo(VaccineTemplate.TargetStage.CATCH_UP);
+        assertThat((VaccineTemplate.TargetStage) ReflectionTestUtils.invokeMethod(service, "resolveTargetStage", 1L, complete))
+                .isEqualTo(VaccineTemplate.TargetStage.ADULT);
+        assertThat((java.util.Map<?, ?>) ReflectionTestUtils.invokeMethod(service, "normalizeHistories", (Object) null)).isEmpty();
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(service, "normalizeHistories", List.of(none, none)))
+                .isInstanceOf(BadRequestException.class);
+        pet.setDateOfBirth(null); pet.setEstimatedAgeMonths(3);
+        assertThat((LocalDate) ReflectionTestUtils.invokeMethod(service, "resolveBirthReferenceDate", pet, LocalDate.of(2026, 1, 1)))
+                .isEqualTo(LocalDate.of(2025, 10, 1));
+        assertThat((LocalDate) ReflectionTestUtils.invokeMethod(service, "minimumDate", pet, null)).isNull();
+    }
+
+    @Test
+    void calculationHelpers_CoverAdultIntervalAndTextBoundaries() {
+        LocalDate today = LocalDate.of(2026, 1, 1);
+        VaccineTemplate adult = template("DHPP", VaccineTemplate.TargetStage.ADULT, 1, 26, 0, 12);
+        VaccinationHistoryRequest history = history("DHPP", VaccinationHistoryRequest.HistoryStatus.COMPLETE, 1, LocalDate.of(2025, 7, 1));
+        assertThat((LocalDate) ReflectionTestUtils.invokeMethod(service, "calculateScheduledDate", adult, history, LocalDate.of(2025, 1, 1), null, today))
+                .isEqualTo(LocalDate.of(2026, 7, 1));
+        VaccineTemplate puppy = template("DHPP", VaccineTemplate.TargetStage.PUPPY, 2, 12, 28, null);
+        assertThat((LocalDate) ReflectionTestUtils.invokeMethod(service, "calculateScheduledDate", puppy, history, LocalDate.of(2025, 11, 1), LocalDate.of(2026, 1, 1), today))
+                .isEqualTo(LocalDate.of(2026, 1, 29));
+        assertThat((String) ReflectionTestUtils.invokeMethod(service, "appendNote", "old", "new")).contains("old").contains("new");
+        assertThat((String) ReflectionTestUtils.invokeMethod(service, "appendNote", "", "new")).isEqualTo("new");
+        assertThat((Integer) ReflectionTestUtils.invokeMethod(service, "defaultZero", (Object) null)).isZero();
+        assertThat((Integer) ReflectionTestUtils.invokeMethod(service, "defaultZero", 7)).isEqualTo(7);
+    }
+
+    @Test
+    void confirmation_EmptyAndNotesPartitions_AreHandled() {
+        when(vaccinationRepository.findByPetIdAndStatusOrderBySeriesCodeAscDoseNumberAsc(20L, PetVaccination.VaccinationStatus.proposed)).thenReturn(List.of());
+        assertThatThrownBy(() -> service.confirmPlan(pet, pet.getOwner(), null)).isInstanceOf(BadRequestException.class);
+        PetVaccination proposed = vaccination(1, 8, 0, LocalDate.now()); proposed.setStatus(PetVaccination.VaccinationStatus.proposed); proposed.setNotes("old");
+        when(vaccinationRepository.findByPetIdAndStatusOrderBySeriesCodeAscDoseNumberAsc(20L, PetVaccination.VaccinationStatus.proposed)).thenReturn(List.of(proposed));
+        service.confirmPlan(pet, pet.getOwner(), "new");
+        assertThat(proposed.getNotes()).contains("old").contains("new");
+    }
+
+    @Test
+    void completionWithMissingDataAndSpecialDownstreamStatuses_UsesExpectedBranches() {
+        PetVaccination missing = vaccination(1, 8, 0, LocalDate.now()); missing.setPet(pet); missing.setSeriesCode(null); missing.setActualDate(null);
+        service.recalculateAfterCompletion(missing);
+        verify(vaccinationRepository, never()).findByPetIdAndSeriesCodeAndDoseNumberGreaterThanOrderByDoseNumberAsc(any(), any(), any());
+
+        PetVaccination completed = vaccination(1, 8, 0, LocalDate.now()); completed.setPet(pet); completed.setActualDate(LocalDate.now()); completed.setStatus(PetVaccination.VaccinationStatus.completed);
+        PetVaccination done = vaccination(2, 12, 28, LocalDate.now().plusDays(1)); done.setPet(pet); done.setStatus(PetVaccination.VaccinationStatus.completed); done.setActualDate(LocalDate.now().plusDays(2));
+        PetVaccination skipped = vaccination(3, 16, 28, LocalDate.now().plusDays(3)); skipped.setPet(pet); skipped.setStatus(PetVaccination.VaccinationStatus.skipped);
+        PetVaccination overdue = vaccination(4, 20, 28, LocalDate.now().minusDays(1)); overdue.setPet(pet); overdue.setStatus(PetVaccination.VaccinationStatus.overdue);
+        when(vaccinationRepository.findByPetIdAndSeriesCodeAndDoseNumberGreaterThanOrderByDoseNumberAsc(20L, "CANINE_CORE_DHPP", 1)).thenReturn(List.of(done, skipped, overdue));
+        service.recalculateAfterCompletion(completed);
+        assertThat(overdue.getStatus()).isEqualTo(PetVaccination.VaccinationStatus.scheduled);
+    }
+
+    @Test
+    void generation_UnsupportedHistoryAndOptionalOnlyTemplates_AreRejected() {
+        VaccineTemplate template = template("DHPP", VaccineTemplate.TargetStage.PUPPY, 1, 8, 0, null);
+        when(templateRepository.findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(1L)).thenReturn(List.of(template));
+        assertThatThrownBy(() -> service.generateProposedSchedule(pet, List.of(history("UNKNOWN", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null))))
+                .isInstanceOf(BadRequestException.class);
+        template.setOptional(true);
+        assertThatThrownBy(() -> service.generateProposedSchedule(pet, List.of(history("DHPP", VaccinationHistoryRequest.HistoryStatus.NONE, 0, null))))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void generation_EstimatedAgeAndIncompleteCompleteHistory_RequiresReview() {
+        pet.setDateOfBirth(null); pet.setEstimatedAgeMonths(8);
+        VaccineTemplate adult = template("DHPP", VaccineTemplate.TargetStage.ADULT, 1, 26, 0, 12);
+        when(templateRepository.findBySpeciesIdAndActiveTrueAndSeriesCodeIsNotNullOrderBySeriesCodeAscDoseNumberAsc(1L)).thenReturn(List.of(adult));
+        service.generateProposedSchedule(pet, List.of(history("DHPP", VaccinationHistoryRequest.HistoryStatus.COMPLETE, 1, null)));
+        assertThat(pet.getVaccinePlanStatus()).isEqualTo(Pet.VaccinePlanStatus.REVIEW_REQUIRED);
+        verify(notificationRepository).save(any(Notification.class));
+    }
+
+    @Test
+    void boosterHelper_CoversPendingIntervalDuplicateAndCopyBranches() {
+        pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.ACTIVE);
+        PetVaccination completed = vaccination(1, 8, 0, LocalDate.now());
+        completed.setPet(pet); completed.setActualDate(LocalDate.now()); completed.setStatus(PetVaccination.VaccinationStatus.completed);
+        completed.setBoosterIntervalMonths(12); completed.setSeriesCode("DHPP");
+        PetVaccination pending = vaccination(2, 12, 28, LocalDate.now().plusDays(1)); pending.setStatus(PetVaccination.VaccinationStatus.scheduled);
+        ReflectionTestUtils.invokeMethod(service, "createNextBoosterIfNeeded", completed, List.of(pending));
+
+        completed.setBoosterIntervalMonths(null);
+        ReflectionTestUtils.invokeMethod(service, "createNextBoosterIfNeeded", completed, List.of());
+        completed.setBoosterIntervalMonths(12);
+        when(templateRepository.findFirstBySpeciesIdAndSeriesCodeAndTargetStageAndActiveTrue(1L, "DHPP", VaccineTemplate.TargetStage.ADULT)).thenReturn(java.util.Optional.empty());
+        when(vaccinationRepository.existsByPetIdAndSeriesCodeAndScheduledDateAndStatusNot(any(), any(), any(), any())).thenReturn(true);
+        ReflectionTestUtils.invokeMethod(service, "createNextBoosterIfNeeded", completed, List.of());
+        when(vaccinationRepository.existsByPetIdAndSeriesCodeAndScheduledDateAndStatusNot(any(), any(), any(), any())).thenReturn(false);
+        ReflectionTestUtils.invokeMethod(service, "createNextBoosterIfNeeded", completed, List.of());
+        verify(vaccinationRepository).save(any(PetVaccination.class));
+    }
+
+    @Test
+    void recalculation_MinimumAgeAndNoChangeBranches_AreHandled() {
+        pet.setDateOfBirth(LocalDate.now().minusWeeks(1));
+        PetVaccination completed = vaccination(1, 8, 0, LocalDate.now()); completed.setPet(pet); completed.setActualDate(LocalDate.now()); completed.setStatus(PetVaccination.VaccinationStatus.completed);
+        PetVaccination downstream = vaccination(2, 12, 1, LocalDate.now()); downstream.setPet(pet); downstream.setStatus(PetVaccination.VaccinationStatus.scheduled);
+        when(vaccinationRepository.findByPetIdAndSeriesCodeAndDoseNumberGreaterThanOrderByDoseNumberAsc(20L, "CANINE_CORE_DHPP", 1)).thenReturn(List.of(downstream));
+        when(templateRepository.findFirstBySpeciesIdAndSeriesCodeAndTargetStageAndActiveTrue(any(), any(), any())).thenReturn(java.util.Optional.empty());
+        service.recalculateAfterCompletion(completed);
+        assertThat(downstream.getScheduledDate()).isEqualTo(pet.getDateOfBirth().plusWeeks(12));
+    }
+
+    @Test
+    void confirmationWithoutNotesAndRecalculationSpecialStatuses_AreHandled() {
+        PetVaccination proposed = vaccination(1, 8, 0, LocalDate.now()); proposed.setStatus(PetVaccination.VaccinationStatus.proposed);
+        when(vaccinationRepository.findByPetIdAndStatusOrderBySeriesCodeAscDoseNumberAsc(20L, PetVaccination.VaccinationStatus.proposed)).thenReturn(List.of(proposed));
+        service.confirmPlan(pet, pet.getOwner(), " ");
+        assertThat(proposed.getNotes()).isNull();
+
+        PetVaccination completed = vaccination(1, 8, 0, LocalDate.now()); completed.setPet(pet); completed.setActualDate(LocalDate.now()); completed.setStatus(PetVaccination.VaccinationStatus.completed);
+        PetVaccination doneNoDate = vaccination(2, 12, 28, LocalDate.now().plusDays(28)); doneNoDate.setPet(pet); doneNoDate.setStatus(PetVaccination.VaccinationStatus.completed); doneNoDate.setActualDate(null);
+        PetVaccination cancelled = vaccination(3, 16, 28, LocalDate.now().plusDays(56)); cancelled.setPet(pet); cancelled.setStatus(PetVaccination.VaccinationStatus.cancelled);
+        when(vaccinationRepository.findByPetIdAndSeriesCodeAndDoseNumberGreaterThanOrderByDoseNumberAsc(20L, "CANINE_CORE_DHPP", 1)).thenReturn(List.of(doneNoDate, cancelled));
+        service.recalculateAfterCompletion(completed);
+    }
+
+    @Test
+    void boosterFromAdultTemplate_UsesTemplateAndProposedStatus() {
+        pet.setVaccinePlanStatus(Pet.VaccinePlanStatus.PROPOSED);
+        PetVaccination completed = vaccination(1, 8, 0, LocalDate.now()); completed.setPet(pet); completed.setActualDate(LocalDate.now()); completed.setSeriesCode("DHPP"); completed.setBoosterIntervalMonths(null);
+        VaccineTemplate adult = template("DHPP", VaccineTemplate.TargetStage.ADULT, 1, 26, 0, 12);
+        when(templateRepository.findFirstBySpeciesIdAndSeriesCodeAndTargetStageAndActiveTrue(1L, "DHPP", VaccineTemplate.TargetStage.ADULT)).thenReturn(java.util.Optional.of(adult));
+        when(vaccinationRepository.existsByPetIdAndSeriesCodeAndScheduledDateAndStatusNot(any(), any(), any(), any())).thenReturn(false);
+        ReflectionTestUtils.invokeMethod(service, "createNextBoosterIfNeeded", completed, List.of());
+        verify(vaccinationRepository).save(any(PetVaccination.class));
     }
 
     private VaccineTemplate template(

@@ -1,5 +1,6 @@
 package com.petcare.backend.exception;
 
+import com.petcare.backend.dto.auth.response.EmailVerificationRequiredResponse;
 import com.petcare.backend.dto.common.ApiResponse;
 import com.petcare.backend.dto.reminder.request.ReminderStatusFilter;
 import com.petcare.backend.model.Blog;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 @RestControllerAdvice
@@ -58,83 +60,94 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         if ("status".equals(ex.getName()) && ex.getRequiredType() == ReminderStatusFilter.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái lịch nhắc không hợp lệ", null));
+            return badRequest("Trạng thái lịch nhắc không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái blog không hợp lệ", null));
+            return badRequest("Trạng thái blog không hợp lệ");
         }
         if ("category".equals(ex.getName()) && ex.getRequiredType() == Blog.BlogCategory.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Danh mục blog không hợp lệ", null));
+            return badRequest("Danh mục blog không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == Pet.PetStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái thú cưng không hợp lệ", null));
+            return badRequest("Trạng thái thú cưng không hợp lệ");
         }
         if ("vaccinePlanStatus".equals(ex.getName()) && ex.getRequiredType() == Pet.VaccinePlanStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái kế hoạch tiêm không hợp lệ", null));
+            return badRequest("Trạng thái kế hoạch tiêm không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == PetVaccination.VaccinationStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
+            return badRequest("Trạng thái tiêm không hợp lệ");
         }
         if ("targetStage".equals(ex.getName()) && ex.getRequiredType() == VaccineTemplate.TargetStage.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn vaccine không hợp lệ", null));
+            return badRequest("Giai đoạn vaccine không hợp lệ");
         }
         if ("category".equals(ex.getName()) && ex.getRequiredType() == CareReminder.ReminderCategory.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Loại lịch nhắc không hợp lệ", null));
+            return badRequest("Loại lịch nhắc không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == CareReminderLog.ReminderLogStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log lịch nhắc không hợp lệ", null));
+            return badRequest("Trạng thái log lịch nhắc không hợp lệ");
         }
         if ("stage".equals(ex.getName())
                 && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStage.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Giai đoạn nhắc tiêm không hợp lệ", null));
+            return badRequest("Giai đoạn nhắc tiêm không hợp lệ");
         }
         if ("status".equals(ex.getName())
                 && ex.getRequiredType() == VaccinationReminderLog.VaccinationReminderStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái log nhắc tiêm không hợp lệ", null));
+            return badRequest("Trạng thái log nhắc tiêm không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == PostStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bài viết không hợp lệ", null));
+            return badRequest("Trạng thái bài viết không hợp lệ");
         }
         if ("privacy".equals(ex.getName()) && ex.getRequiredType() == PostPrivacy.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Quyền riêng tư bài viết không hợp lệ", null));
+            return badRequest("Quyền riêng tư bài viết không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == CommentStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái bình luận không hợp lệ", null));
+            return badRequest("Trạng thái bình luận không hợp lệ");
         }
         if ("status".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportStatus.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái báo cáo không hợp lệ", null));
+            return badRequest("Trạng thái báo cáo không hợp lệ");
         }
         if ("targetType".equals(ex.getName())
                 && ex.getRequiredType() == SocialReport.ModerationTargetType.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Loại đối tượng báo cáo không hợp lệ", null));
+            return badRequest("Loại đối tượng báo cáo không hợp lệ");
         }
         if ("reason".equals(ex.getName()) && ex.getRequiredType() == SocialReport.ReportReason.class) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Lý do báo cáo không hợp lệ", null));
+            return badRequest("Lý do báo cáo không hợp lệ");
         }
         if ("status".equals(ex.getName())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Trạng thái tiêm không hợp lệ", null));
+            return badRequest("Trạng thái không hợp lệ");
         }
 
-        return ResponseEntity.badRequest().body(ApiResponse.error(
-                "Tham số " + ex.getName() + " không hợp lệ",
-                null
-        ));
+        return badRequest("Tham số " + ex.getName() + " không hợp lệ");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(HttpMessageNotReadableException ex) {
-        return ResponseEntity.badRequest().body(ApiResponse.error("Dữ liệu request không hợp lệ", null));
+        return badRequest("Dữ liệu request không hợp lệ");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParameter(MissingServletRequestParameterException ex) {
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Thiếu tham số bắt buộc: " + ex.getParameterName(), null));
+        return badRequest("Thiếu tham số bắt buộc: " + ex.getParameterName());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error("Dung lượng ảnh tải lên quá lớn. Vui lòng chọn ảnh nhẹ hơn hoặc giảm số lượng ảnh", null));
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
-        return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage(), null));
+        return badRequest(ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApiResponse<EmailVerificationRequiredResponse>> handleEmailNotVerified(
+            EmailNotVerifiedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(
+                ex.getMessage(),
+                new EmailVerificationRequiredResponse(ex.getEmail(), true)
+        ));
     }
 
     @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
@@ -184,10 +197,10 @@ public class GlobalExceptionHandler {
                 : ex.getMessage();
 
         if (message != null && message.toLowerCase().contains("phone_number")) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại đã được sử dụng", null));
+            return badRequest("Số điện thoại đã được sử dụng");
         }
 
-        return ResponseEntity.badRequest().body(ApiResponse.error("Dữ liệu không hợp lệ", null));
+        return badRequest("Dữ liệu không hợp lệ");
     }
 
     @ExceptionHandler(Exception.class)
@@ -195,5 +208,9 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Có lỗi xảy ra, vui lòng thử lại sau", null));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> badRequest(String message) {
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, null));
     }
 }

@@ -19,6 +19,17 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
             Pageable pageable
     );
 
+    @Query("""
+            SELECT COUNT(p.id)
+            FROM Post p
+            WHERE p.user.id = :userId
+              AND p.status <> :deletedStatus
+            """)
+    long countVisiblePostsByUserId(
+            @Param("userId") Long userId,
+            @Param("deletedStatus") PostStatus deletedStatus
+    );
+
     Page<Post> findByUser_IdAndStatusOrderByCreatedAtDesc(
             Long userId,
             PostStatus status,

@@ -58,6 +58,9 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Value("${app.upload.user-profile-dir:user-profile}")
     private String userProfileDir;
 
+    @Value("${app.upload.blog-cover-dir:blog-cover}")
+    private String blogCoverDir;
+
     @Value("${app.upload.max-file-size-mb:20}")
     private long maxFileSizeMb;
 
@@ -109,6 +112,18 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
+    public UploadFileResponse storeBlogCoverImage(MultipartFile file) {
+        validateProfileImage(file, "Ảnh bìa blog không hợp lệ. Chỉ hỗ trợ JPG, PNG, WEBP và tối đa 5MB");
+        return storeMediaFile(file, blogCoverDir, true);
+    }
+
+    @Override
+    public UploadFileResponse storeMomentMediaFile(MultipartFile file) {
+        validateFile(file);
+        return storeMediaFile(file, "moments", true);
+    }
+
+    @Override
     public void deleteByUrl(String fileUrl) {
         if (!StringUtils.hasText(fileUrl)) return;
         String prefix = publicUrlPrefix.replaceAll("/+$", "") + "/";
@@ -119,7 +134,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         try {
             Files.deleteIfExists(target);
         } catch (IOException ex) {
-            throw new UncheckedIOException("Could not delete file", ex);
+            throw new UncheckedIOException("Không thể xóa file", ex);
         }
     }
 
@@ -131,7 +146,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         validateFile(file);
 
         String originalFilename = file.getOriginalFilename().trim();
-        String mimeType = file.getContentType().toLowerCase(Locale.ROOT);
+        String mimeType = resolveMimeType(file);
         String mediaType = SUPPORTED_MIME_TYPES.get(mimeType);
         String storedFilename = uuidOnly
                 ? UUID.randomUUID() + safeImageExtension(mimeType)
@@ -147,14 +162,14 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         Path targetPath = targetDirectory.resolve(storedFilename).normalize();
 
         if (!targetPath.startsWith(targetDirectory)) {
-            throw new BadRequestException("Invalid filename");
+            throw new BadRequestException("Tên file không hợp lệ");
         }
 
         try {
             Files.createDirectories(targetDirectory);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
-            throw new UncheckedIOException("Could not store file", ex);
+            throw new UncheckedIOException("Không thể lưu file", ex);
         }
 
         String mediaUrl = joinUrl(publicUrlPrefix, mediaDirectory, year, month, storedFilename);
@@ -173,9 +188,8 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (file == null || file.isEmpty() || file.getSize() > 5L * 1024 * 1024) {
             throw new BadRequestException(message);
         }
-        String mimeType = file.getContentType();
-        if (!StringUtils.hasText(mimeType)
-                || !List.of("image/jpeg", "image/png", "image/webp").contains(mimeType.toLowerCase(Locale.ROOT))) {
+        String mimeType = resolveMimeType(file);
+        if (!List.of("image/jpeg", "image/png", "image/webp").contains(mimeType)) {
             throw new BadRequestException(message);
         }
     }
@@ -191,37 +205,69 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
 
     private void validateFile(MultipartFile file) {
         if (file == null) {
-            throw new BadRequestException("File is required");
+            throw new BadRequestException("Vui lòng chọn file");
         }
         if (file.isEmpty()) {
-            throw new BadRequestException("File must not be empty");
+            throw new BadRequestException("File không được để trống");
         }
 
         String originalFilename = file.getOriginalFilename();
         if (!StringUtils.hasText(originalFilename)) {
-            throw new BadRequestException("Original filename is required");
+            throw new BadRequestException("Tên file gốc không hợp lệ");
         }
         if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
-            throw new BadRequestException("Invalid filename");
+            throw new BadRequestException("Tên file không hợp lệ");
         }
 
         long maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
         if (file.getSize() > maxFileSizeBytes) {
-            throw new BadRequestException("File exceeds maximum size");
+            throw new BadRequestException("File vượt quá dung lượng cho phép");
         }
 
-        String mimeType = file.getContentType();
-        if (!StringUtils.hasText(mimeType)
-                || !SUPPORTED_MIME_TYPES.containsKey(mimeType.toLowerCase(Locale.ROOT))) {
-            throw new BadRequestException("Unsupported file type");
+        String mimeType = resolveMimeType(file);
+        if (!SUPPORTED_MIME_TYPES.containsKey(mimeType)) {
+            throw new BadRequestException("Định dạng file không được hỗ trợ");
         }
+    }
+
+    private String resolveMimeType(MultipartFile file) {
+        String mimeType = file.getContentType();
+        if (StringUtils.hasText(mimeType) && !"application/octet-stream".equalsIgnoreCase(mimeType)) {
+            return normalizeMimeType(mimeType);
+        }
+
+        String filename = file.getOriginalFilename();
+        if (!StringUtils.hasText(filename)) {
+            return "";
+        }
+        String lowerFilename = filename.toLowerCase(Locale.ROOT);
+        if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerFilename.endsWith(".png")) return "image/png";
+        if (lowerFilename.endsWith(".webp")) return "image/webp";
+        if (lowerFilename.endsWith(".gif")) return "image/gif";
+        if (lowerFilename.endsWith(".mp4")) return "video/mp4";
+        if (lowerFilename.endsWith(".webm")) return "video/webm";
+        if (lowerFilename.endsWith(".mov")) return "video/quicktime";
+        if (lowerFilename.endsWith(".pdf")) return "application/pdf";
+        if (lowerFilename.endsWith(".doc")) return "application/msword";
+        if (lowerFilename.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lowerFilename.endsWith(".txt")) return "text/plain";
+        return "";
+    }
+
+    private String normalizeMimeType(String mimeType) {
+        String normalized = mimeType.toLowerCase(Locale.ROOT);
+        if ("image/jpg".equals(normalized) || "image/pjpeg".equals(normalized)) {
+            return "image/jpeg";
+        }
+        return normalized;
     }
 
     private String sanitizeFilename(String filename) {
         String sanitized = filename.trim().replaceAll("\\s+", "-");
         sanitized = sanitized.replaceAll("[^A-Za-z0-9._-]", "");
         if (!StringUtils.hasText(sanitized)) {
-            throw new BadRequestException("Invalid filename");
+            throw new BadRequestException("Tên file không hợp lệ");
         }
         return sanitized;
     }

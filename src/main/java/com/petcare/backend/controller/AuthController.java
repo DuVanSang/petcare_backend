@@ -1,7 +1,7 @@
 package com.petcare.backend.controller;
 
-import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.FirebaseLoginRequest;
+import com.petcare.backend.dto.auth.request.ForgotPasswordRequest;
 import com.petcare.backend.dto.auth.request.GoogleLoginRequest;
 import com.petcare.backend.dto.auth.request.LoginRequest;
 import com.petcare.backend.dto.auth.request.LogoutRequest;
@@ -33,11 +33,17 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
         RegisterResponse result = authService.register(request);
+        if (result.isExistingUnverifiedAccount()) {
+            String pendingMessage = result.getDevOtp() != null
+                    ? "Tài khoản chưa xác thực. Không gửi được email, vui lòng dùng mã OTP hiển thị trên màn hình"
+                    : "Tài khoản chưa xác thực. Mã OTP mới đã được gửi đến email của bạn";
+            return ResponseEntity.ok(ApiResponse.success(pendingMessage, result));
+        }
+
         String message = result.getDevOtp() != null
                 ? "Đăng ký thành công. Không gửi được email, vui lòng dùng mã OTP hiển thị trên màn hình"
                 : "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP";
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(message, result));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(message, result));
     }
 
     @PostMapping("/verify-email")

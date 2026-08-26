@@ -187,6 +187,67 @@ class ReminderEngineServiceImplTest {
         verify(pushNotificationSender, never()).send(any(Notification.class));
     }
 
+    // EP: a one-time reminder and an already-existing next occurrence both clear nextDueAt.
+    @Test
+    void customWorker_OnceOrDuplicateNextOccurrence_ClearsNextDue() {
+        User creator = user(1L); Pet pet = pet(10L, creator);
+        CareReminder reminder = new CareReminder();
+        reminder.setId(100L); reminder.setCreatedBy(creator); reminder.setPet(pet); reminder.setTitle("Tắm");
+        reminder.setCategory(CareReminder.ReminderCategory.bathing); reminder.setTimezone("Asia/Ho_Chi_Minh");
+        reminder.setReminderTime(LocalTime.of(9, 0)); reminder.setStartDate(LocalDate.now());
+        reminder.setFrequency(CareReminder.ReminderFrequency.once);
+        CareReminderLog due = new CareReminderLog(); due.setReminder(reminder); due.setDueAt(Instant.now().minusSeconds(1));
+        when(reminderLogRepository.findDueForUpdate(eq(CareReminderLog.ReminderLogStatus.pending), any(), any(Pageable.class)))
+                .thenReturn(List.of(due));
+
+        service.processDueCustomReminders();
+
+        assertThat(reminder.getNextDueAt()).isNull();
+    }
+
+    // EP: offsets outside defined vaccination stages and future-in-day schedules do not notify.
+    @Test
+    void systemWorker_InvalidOffsetAndFutureTime_DoNotNotify() {
+        User owner = user(1L); Pet pet = pet(10L, owner);
+        PetVaccination offStage = vaccination(20L, pet, LocalDate.now().minusDays(2));
+        ReflectionTestUtils.setField(service, "vaccineNotificationTime", "23:59");
+        when(vaccinationRepository.findByStatusAndScheduledDateBefore(any(), any())).thenReturn(List.of());
+        when(vaccinationRepository.findByStatusInAndScheduledDateBetween(anyList(), any(), any())).thenReturn(List.of(offStage));
+        when(coParentRepository.findByPetId(10L)).thenReturn(List.of());
+
+        service.processSystemVaccinationReminders();
+
+        verify(pushNotificationSender, never()).send(any());
+    }
+
+    // BVA/EP: every configured stage has a title, and the 14-day overdue body adds advice.
+    @Test
+    void vaccinationStageHelpers_CoverAllStagesAndOverdueAdvice() {
+        for (VaccinationReminderLog.VaccinationReminderStage stage : VaccinationReminderLog.VaccinationReminderStage.values()) {
+            String title = ReflectionTestUtils.invokeMethod(service, "vaccinationTitle", stage);
+            assertThat(title).isNotBlank();
+        }
+        PetVaccination vaccination = vaccination(20L, pet(10L, user(1L)), LocalDate.now().minusDays(14));
+        String body = ReflectionTestUtils.invokeMethod(service, "vaccinationBody", vaccination,
+                VaccinationReminderLog.VaccinationReminderStage.OVERDUE_14_DAYS);
+        assertThat(body).contains("bác sĩ thú y");
+    }
+
+    @Test
+    void helperMethods_InvalidTimezoneAndUnknownOffset_UseFallbacks() {
+        java.time.ZoneId zone = ReflectionTestUtils.invokeMethod(service, "validZone", "not-a-zone");
+        Object stage = ReflectionTestUtils.invokeMethod(service, "stageForOffset", 99L);
+        assertThat(zone.getId()).isEqualTo("Asia/Ho_Chi_Minh");
+        assertThat(stage).isNull();
+    }
+
+    @Test
+    void customBody_WithNotes_UsesNotesInsteadOfGeneratedBody() {
+        CareReminder reminder = new CareReminder(); reminder.setNotes("Cho uống sau bữa ăn");
+        String body = ReflectionTestUtils.invokeMethod(service, "buildCustomBody", reminder);
+        assertThat(body).isEqualTo("Cho uống sau bữa ăn");
+    }
+
     private User user(Long id) {
         User user = new User();
         user.setId(id);

@@ -14,4 +14,6 @@ public class AdminCreateSpeciesRequest {
 
     @Size(max = 255, message = "URL icon không được quá 255 ký tự")
     private String iconUrl;
+
+    private Boolean active;
 }

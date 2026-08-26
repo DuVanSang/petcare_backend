@@ -11,6 +11,10 @@ public class SocialReportResponse {
     private Long id;
     private String targetType;
     private Long targetId;
+    private String targetAuthorName;
+    private String targetAuthorEmail;
+    private String targetPreview;
+    private java.util.List<String> targetMediaUrls;
     private Long reporterId;
     private String reporterName;
     private String reporterEmail;

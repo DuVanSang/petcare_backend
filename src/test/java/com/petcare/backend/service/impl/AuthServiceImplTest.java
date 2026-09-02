@@ -57,6 +57,23 @@ class AuthServiceImplTest {
         ArgumentCaptor<User> captured=ArgumentCaptor.forClass(User.class);verify(users).save(captured.capture());
         assertThat(captured.getValue().getEmail()).isEqualTo("user@test.com");assertThat(captured.getValue().getPasswordHash()).isEqualTo("encoded");assertThat(captured.getValue().getPhoneNumber()).isNull();assertThat(response.getUserId()).isEqualTo(1L);verify(verification).createOtp(saved);
     }
+    @Test void register_UpdatesExistingDeviceMatchedByIdOrToken() {
+        DeviceInfoRequest device = new DeviceInfoRequest(); device.setDeviceId(" phone-2 "); device.setDeviceType(" ANDROID "); device.setDeviceToken(" token-1 ");
+        RegisterRequest request = register("device@test.com"); request.setDevice(device);
+        UserDevice existingDevice = new UserDevice(); existingDevice.setId(5L); existingDevice.setDeviceId("old-phone"); existingDevice.setDeviceType("ios");
+        when(encoder.encode("password1")).thenReturn("encoded");
+        when(users.save(any())).thenAnswer(i -> { User saved = i.getArgument(0); saved.setId(4L); return saved; });
+        when(devices.findForRegistration("phone-2", "token-1")).thenReturn(Optional.of(existingDevice));
+        when(devices.save(existingDevice)).thenReturn(existingDevice);
+
+        service.register(request);
+
+        assertThat(existingDevice.getDeviceId()).isEqualTo("phone-2");
+        assertThat(existingDevice.getDeviceType()).isEqualTo("android");
+        assertThat(existingDevice.getDeviceToken()).isEqualTo("token-1");
+        assertThat(existingDevice.getNotificationEnabled()).isTrue();
+        verify(devices).save(existingDevice);
+    }
     @Test void register_RejectsDuplicateEmailAndPhoneBeforeSave() {
         when(users.existsByEmail("u@test.com")).thenReturn(true);assertThatThrownBy(()->service.register(register("u@test.com"))).isInstanceOf(BadRequestException.class);verifyNoInteractions(encoder,verification);
         when(users.existsByEmail("u@test.com")).thenReturn(false);RegisterRequest r=register("u@test.com");r.setPhoneNumber("0123456789");when(users.existsByPhoneNumber("0123456789")).thenReturn(true);assertThatThrownBy(()->service.register(r)).isInstanceOf(BadRequestException.class);verify(users,never()).save(any());

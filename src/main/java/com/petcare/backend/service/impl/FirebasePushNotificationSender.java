@@ -56,6 +56,13 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
                 notification.getReceiver().getId()
         );
 
+        if (devices.isEmpty()) {
+            log.warn("Bỏ qua gửi push notification: User {} chưa có thiết bị nào đăng ký token hợp lệ", receiver.getId());
+            return;
+        }
+
+        log.info("Bắt đầu gửi push notification cho user {} tới {} thiết bị", receiver.getId(), devices.size());
+
         for (UserDevice device : devices) {
             sendToDevice(notification, device);
         }
@@ -73,7 +80,8 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
         }
 
         try {
-            firebaseMessaging.send(buildMessage(notification, token));
+            String messageId = firebaseMessaging.send(buildMessage(notification, token));
+            log.info("Gửi Firebase push thành công cho device {}, messageId: {}", device.getId(), messageId);
         } catch (FirebaseMessagingException ex) {
             log.warn(
                     "Không gửi được Firebase push cho device {}: {} - {}",
@@ -96,9 +104,9 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder()
+                                .setChannelId("default")
                                 .setSound("default")
                                 .setClickAction("PETCARE_NOTIFICATION")
-                                .setIcon("notification_icon")
                                 .setColor("#1E90FF")
                                 .build())
                         .build())

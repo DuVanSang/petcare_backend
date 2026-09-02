@@ -54,7 +54,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public boolean sendVerificationOtp(String toEmail, String otpCode) {
-        String subject = "PetCare - Mã xác thực email";
+        String subject = "PetDiary - Mã xác thực email";
         String body = "Mã OTP xác thực email của bạn là: " + otpCode
                 + ". Mã có hiệu lực trong 10 phút.";
 
@@ -63,7 +63,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public boolean sendPasswordResetOtp(String toEmail, String otpCode) {
-        String subject = "PetCare - Mã đặt lại mật khẩu";
+        String subject = "PetDiary - Mã đặt lại mật khẩu";
         String body = "Mã OTP đặt lại mật khẩu của bạn là: " + otpCode
                 + ". Mã có hiệu lực trong 10 phút.";
 

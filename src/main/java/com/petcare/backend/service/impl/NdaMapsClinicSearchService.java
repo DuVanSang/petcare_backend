@@ -8,12 +8,15 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+@Slf4j
 @Slf4j
 @Service
 public class NdaMapsClinicSearchService implements ClinicSearchService {
@@ -38,6 +41,12 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
         this.apiKey = apiKey != null ? apiKey.trim().replace("\"", "").replace("'", "") : "";
         this.baseUrl = baseUrl != null ? baseUrl.trim().replaceAll("/+$", "").replace("\"", "").replace("'", "") : "https://mapapis.ndamaps.vn/v1";
         this.category = category != null ? category.trim() : "veterinary_care";
+        this.restClient = RestClient.builder()
+                .defaultHeader("User-Agent", "PetCare-App/1.0")
+                .build();
+        this.apiKey = apiKey != null ? apiKey.trim().replace("\"", "").replace("'", "") : "";
+        this.baseUrl = baseUrl != null ? baseUrl.trim().replaceAll("/+$", "").replace("\"", "").replace("'", "") : "https://mapapis.ndamaps.vn/v1";
+        this.category = category != null ? category.trim() : "veterinary_care";
         this.maxRadiusKm = maxRadiusKm;
         this.maxResults = maxResults;
         this.detailEnrichmentLimit = detailEnrichmentLimit;
@@ -51,6 +60,23 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
 
         int radius = Math.min(radiusKm, maxRadiusKm);
         int size = Math.max(1, Math.min(maxResults, 20));
+        try {
+            List<NearbyClinicResponse> results = queryNearby(latitude, longitude, radius, size);
+            // Nếu không tìm thấy trong bán kính mặc định (ví dụ 5km), tự động thử mở rộng lên 10km-15km
+            if (results.isEmpty() && radius < 15) {
+                int expandedRadius = Math.min(radius * 2, 15);
+                log.info("Không có phòng khám trong {} km, tự động mở rộng bán kính lên {} km", radius, expandedRadius);
+                results = queryNearby(latitude, longitude, expandedRadius, size);
+            }
+            return results;
+        } catch (RestClientException ex) {
+            log.error("Không thể kết nối NDA Maps API (baseUrl={}, apiKey={}): {}", baseUrl, apiKey.length() > 6 ? apiKey.substring(0, 6) + "..." : apiKey, ex.getMessage(), ex);
+            throw new BadRequestException("Tạm thời không thể kết nối tới dịch vụ tìm kiếm phòng khám. Vui lòng thử lại sau.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<NearbyClinicResponse> queryNearby(double latitude, double longitude, int radius, int size) {
         try {
             Map<String, Object> response = restClient.get()
                     .uri(baseUrl + "/nearby?categories={category}&point.lat={lat}&point.lon={lon}"
@@ -73,9 +99,10 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
                         }
                     })
                     .toList();
-        } catch (RestClientException ex) {
-            log.error("Không thể kết nối NDA Maps API (baseUrl={}, apiKey={}): {}", baseUrl, apiKey.length() > 6 ? apiKey.substring(0, 6) + "..." : apiKey, ex.getMessage(), ex);
-            throw new BadRequestException("Không thể kết nối NDA Maps để tìm phòng khám: " + ex.getMessage());
+        } catch (HttpClientErrorException.NotFound ex) {
+            log.info("NDA Maps trả về 404 (Không có phòng khám nào trong bán kính {} km quanh {}, {}): {}",
+                    radius, latitude, longitude, ex.getResponseBodyAsString());
+            return List.of();
         }
     }
 

@@ -19,6 +19,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -40,6 +42,7 @@ public class PetVaccination {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vaccine_template_id")
+    @NotFound(action = NotFoundAction.IGNORE)
     private VaccineTemplate vaccineTemplate;
 
     @Column(name = "vaccine_name", nullable = false, length = 150)

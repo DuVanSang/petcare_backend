@@ -38,6 +38,7 @@ public class Pet {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "species_id")
+    @NotFound(action = NotFoundAction.IGNORE)
     private Species species;
 
     @ManyToOne(fetch = FetchType.LAZY)

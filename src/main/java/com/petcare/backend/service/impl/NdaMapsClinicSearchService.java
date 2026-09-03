@@ -7,13 +7,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+@Slf4j
 @Service
 public class NdaMapsClinicSearchService implements ClinicSearchService {
     private final RestClient restClient;
@@ -31,10 +32,12 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
             @Value("${app.ndamaps.max-radius-km:5}") int maxRadiusKm,
             @Value("${app.ndamaps.max-results:10}") int maxResults,
             @Value("${app.ndamaps.detail-enrichment-limit:5}") int detailEnrichmentLimit) {
-        this.restClient = RestClient.create();
-        this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
-        this.category = category;
+        this.restClient = RestClient.builder()
+                .defaultHeader("User-Agent", "PetCare-App/1.0")
+                .build();
+        this.apiKey = apiKey != null ? apiKey.trim().replace("\"", "").replace("'", "") : "";
+        this.baseUrl = baseUrl != null ? baseUrl.trim().replaceAll("/+$", "").replace("\"", "").replace("'", "") : "https://mapapis.ndamaps.vn/v1";
+        this.category = category != null ? category.trim() : "veterinary_care";
         this.maxRadiusKm = maxRadiusKm;
         this.maxResults = maxResults;
         this.detailEnrichmentLimit = detailEnrichmentLimit;
@@ -71,7 +74,8 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
                     })
                     .toList();
         } catch (RestClientException ex) {
-            throw new BadRequestException("Không thể kết nối NDA Maps để tìm phòng khám");
+            log.error("Không thể kết nối NDA Maps API (baseUrl={}, apiKey={}): {}", baseUrl, apiKey.length() > 6 ? apiKey.substring(0, 6) + "..." : apiKey, ex.getMessage(), ex);
+            throw new BadRequestException("Không thể kết nối NDA Maps để tìm phòng khám: " + ex.getMessage());
         }
     }
 
@@ -130,6 +134,7 @@ public class NdaMapsClinicSearchService implements ClinicSearchService {
             }
             return (Map<String, Object>) features.get(0).getOrDefault("properties", Map.of());
         } catch (RestClientException ex) {
+            log.warn("Không lấy được chi tiết địa điểm NDA Maps {}: {}", placeId, ex.getMessage());
             return Map.of();
         }
     }
